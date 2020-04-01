@@ -1,0 +1,36 @@
+####################
+# CircleCI configuration reference:
+#   https://circleci.com/docs/2.0/configuration-reference
+####################
+
+version: 2
+
+#####################################################
+# Jobs: see https://circleci.com/docs/2.0/jobs-steps/
+#####################################################
+
+jobs:
+  test:
+    docker:
+      - image: mozilla/cidockerbases:docker-latest
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build image
+          command: make build
+      - run:
+          name: Test Code
+          command: make test
+      - run:
+          name: Lint
+          command: make lint
+
+workflows:
+  version: 2
+  build-test-deploy:
+    jobs:
+      - test:
+          filters:
+            tags:
+              only: /.*/
