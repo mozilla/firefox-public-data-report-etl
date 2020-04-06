@@ -1,4 +1,4 @@
-from hardware_report import hardware_report
+from public_data_report.hardware_report import hardware_report
 
 
 def test_hardware_report_helpers():
