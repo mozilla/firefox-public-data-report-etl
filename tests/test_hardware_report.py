@@ -1,5 +1,8 @@
 from public_data_report.hardware_report import hardware_report
 
+from pyspark.sql.types import *
+from pyspark.sql import SparkSession
+
 
 def test_hardware_report_helpers():
     """Test if helper functions work as expected."""
@@ -63,3 +66,89 @@ def test_hardware_report_helpers():
         hardware_report.get_device_family_chipset("0xfeeb", "0xdeee", device_map)
         == "Unknown"
     ), "Unknown families must be reported as 'Unknown'."
+
+
+def test_to_dict():
+    spark = SparkSession.builder.appName("hardware_report_test").getOrCreate()
+
+    test_schema = StructType(
+        [
+            StructField("browser_arch", StringType()),
+            StructField("os", StringType()),
+            StructField("memory_gb", LongType()),
+            StructField("is_wow64", BooleanType()),
+            StructField("gfx0_vendor_id", StringType()),
+            StructField("gfx0_device_id", StringType()),
+            StructField("resolution", StringType()),
+            StructField("cpu_cores", LongType()),
+            StructField("cpu_vendor", StringType()),
+            StructField("cpu_speed", DoubleType()),
+            StructField("has_flash", BooleanType()),
+            StructField("count", LongType()),
+        ]
+    )
+
+    test_data = [
+        [
+            "x86-64",
+            "Windows_NT-10.0",
+            14,
+            False,
+            "0x10de",
+            "0x13c2",
+            "1920x1080",
+            4,
+            "GenuineIntel",
+            3600.0,
+            True,
+            1,
+        ],
+        [
+            "x86-64",
+            "Windows_NT-6.2",
+            17,
+            False,
+            "0x1414",
+            "0xfefe",
+            "1920x1080",
+            4,
+            "GenuineIntel",
+            None,
+            False,
+            1,
+        ],
+    ]
+
+    test_df = spark.createDataFrame(test_data, schema=test_schema)
+
+    dicts = test_df.rdd.map(hardware_report.to_dict).collect()
+    dicts_expected = [
+        {
+            "os": "Windows_NT-10.0",
+            "arch": "x86-64",
+            "cpu_cores": 4,
+            "cpu_vendor": "GenuineIntel",
+            "cpu_speed": 3.6,
+            "resolution": "1920x1080",
+            "memory_gb": 14,
+            "has_flash": True,
+            "os_arch": "x86-64",
+            "gfx0_vendor_name": "NVIDIA",
+            "gfx0_model": "Maxwell-GM204",
+        },
+        {
+            "os": "Windows_NT-6.2",
+            "arch": "x86-64",
+            "cpu_cores": 4,
+            "cpu_vendor": "GenuineIntel",
+            "cpu_speed": 1,
+            "resolution": "1920x1080",
+            "memory_gb": 17,
+            "has_flash": False,
+            "os_arch": "x86-64",
+            "gfx0_vendor_name": "Microsoft Basic",
+            "gfx0_model": "Unknown",
+        },
+    ]
+
+    assert dicts == dicts_expected
