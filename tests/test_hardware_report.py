@@ -169,3 +169,31 @@ def test_aggregate():
     }
 
     assert aggregated == aggregated_expected
+
+
+def test_collapse_buckets():
+    aggregated = {'os': {'Windows_NT-10.0': 95, 'Windows_NT-6.2': 5},
+                  'arch': {'x86-64': 100},
+                  'cpu_cores': {4: 100},
+                  'cpu_vendor': {'GenuineIntel': 100},
+                  'cpu_speed': {3.6: 98, 1: 2},
+                  'resolution': {'1920x1080': 100},
+                  'memory_gb': {14: 50, 17: 50},
+                  'has_flash': {True: 1, False: 99},
+                  'os_arch': {'x86-64': 100},
+                  'gfx0_vendor_name': {'NVIDIA': 60, 'Microsoft Basic': 40},
+                  'gfx0_model': {'Maxwell-GM204': 95, 'Unknown': 5}}
+    collapsed_expected = {'os': {'Windows_NT-10.0': 0.95, 'Other': 0.05},
+                          'arch': {'x86-64': 1.0},
+                          'cpu_cores': {'4': 1.0},
+                          'cpu_vendor': {'GenuineIntel': 1.0},
+                          'cpu_speed': {'3.6': 0.98, 'Other': 0.02},
+                          'resolution': {'1920x1080': 1.0},
+                          'memory_gb': {'14': 0.5, '17': 0.5},
+                          'has_flash': {'Other': 0.01, 'False': 0.99},
+                          'os_arch': {'x86-64': 1.0},
+                          'gfx0_vendor_name': {'NVIDIA': 0.6, 'Microsoft Basic': 0.4},
+                          'gfx0_model': {'Maxwell-GM204': 0.95, 'Other': 0.05}}
+    collapsed = hardware_report.collapse_buckets(aggregated, 10, 100)
+
+    assert collapsed == collapsed_expected
