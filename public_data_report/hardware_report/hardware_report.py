@@ -313,6 +313,16 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
                     collapsed_counts[OTHER_KEY] = collapsed_counts.get(OTHER_KEY, 0) + v
             else:
                 collapsed_counts[k] = v
+        if dimension == "os":
+            # The previous grouping might have created additional os groups.
+            # Let's check again.
+            final_collapsed = {}
+            for k, v in collapsed_counts.items():
+                if v < count_threshold:
+                    final_collapsed[OTHER_KEY] = final_collapsed.get(OTHER_KEY, 0) + v
+                else:
+                    final_collapsed[k] = v
+            collapsed_counts = final_collapsed
         collapsed_groups[dimension] = collapsed_counts
 
     ratios = {}

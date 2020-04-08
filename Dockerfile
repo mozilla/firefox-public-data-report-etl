@@ -16,10 +16,9 @@ RUN apt-get update \
 # ENV PYTHONPATH $PYTHONPATH:/app/hardware_report:/app/tests
 
 # ENV PATH="$PATH:~/.local/bin"
-RUN pip3 install tox setuptools wheel flake8
+RUN pip3 install --upgrade pip && pip3 install tox setuptools wheel flake8
 
 COPY . /app
 RUN chown -R 10001:10001 /app
 
-RUN pip3 install --upgrade pip && \
-        pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt

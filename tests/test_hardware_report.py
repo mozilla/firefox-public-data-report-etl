@@ -183,7 +183,7 @@ def test_collapse_buckets():
                   'os_arch': {'x86-64': 100},
                   'gfx0_vendor_name': {'NVIDIA': 60, 'Microsoft Basic': 40},
                   'gfx0_model': {'Maxwell-GM204': 95, 'Unknown': 5}}
-    collapsed_expected = {'os': {'Windows_NT-10.0': 0.95, 'Windows_NT-Other': 0.05},
+    collapsed_expected = {'os': {'Windows_NT-10.0': 0.95, 'Other': 0.05},
                           'arch': {'x86-64': 1.0},
                           'cpu_cores': {'4': 1.0},
                           'cpu_vendor': {'GenuineIntel': 1.0},
