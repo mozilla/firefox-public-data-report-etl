@@ -68,7 +68,7 @@ def test_hardware_report_helpers():
     ), "Unknown families must be reported as 'Unknown'."
 
 
-def test_to_dict():
+def test_aggregate():
     spark = SparkSession.builder.appName("hardware_report_test").getOrCreate()
 
     test_schema = StructType(
@@ -152,3 +152,20 @@ def test_to_dict():
     ]
 
     assert dicts == dicts_expected
+
+    aggregated = hardware_report.aggregate(test_df)
+    aggregated_expected = {
+        "os": {"Windows_NT-10.0": 1, "Windows_NT-6.2": 1},
+        "arch": {"x86-64": 2},
+        "cpu_cores": {4: 2},
+        "cpu_vendor": {"GenuineIntel": 2},
+        "cpu_speed": {3.6: 1, 1: 1},
+        "resolution": {"1920x1080": 2},
+        "memory_gb": {14: 1, 17: 1},
+        "has_flash": {True: 1, False: 1},
+        "os_arch": {"x86-64": 2},
+        "gfx0_vendor_name": {"NVIDIA": 1, "Microsoft Basic": 1},
+        "gfx0_model": {"Maxwell-GM204": 1, "Unknown": 1},
+    }
+
+    assert aggregated == aggregated_expected

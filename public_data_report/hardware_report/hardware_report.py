@@ -291,6 +291,10 @@ def combine(acc, row):
     return acc
 
 
+def aggregate(hardware_by_dimensions_df):
+    return hardware_by_dimensions_df.rdd.map(to_dict).map(add_counts).fold({}, combine)
+
+
 def collapse_buckets(aggregated_data, count_threshold, sample_count):
     OTHER_KEY = "Other"
     collapsed_groups = {}
@@ -426,9 +430,7 @@ def main(date_from, bq_table, s3_bucket, s3_path, past_weeks):
         )
         hardware_by_dimensions_df = load_data(spark, batch_date_from, batch_date_to)
 
-        aggregated = (
-            hardware_by_dimensions_df.rdd.map(to_dict).map(add_counts).fold({}, combine)
-        )
+        aggregated = aggregate(hardware_by_dimensions_df)
 
         # Collapse together groups that count less than 1% of our samples.
         sample_count = hardware_by_dimensions_df.count()
