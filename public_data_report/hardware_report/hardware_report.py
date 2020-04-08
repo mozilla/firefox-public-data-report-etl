@@ -49,7 +49,11 @@ def load_data(spark, date_from, date_to):
       SELECT
         environment.build.architecture AS browser_arch,
         environment.system.os.name AS os_name,
-        environment.system.os.version AS os_version,
+        COALESCE(
+            IF (environment.system.os.name='Linux',
+                REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+\.[0-9]+"),
+                environment.system.os.version),
+            'Other') AS os_version,
         environment.system.memory_mb,
         coalesce(environment.system.is_wow64, FALSE) AS is_wow64,
         IF (ARRAY_LENGTH(environment.system.gfx.adapters)>0,
