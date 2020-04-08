@@ -304,7 +304,13 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
             if dimension == "resolution" and k == "0x0":
                 collapsed_counts[OTHER_KEY] = collapsed_counts.get(OTHER_KEY, 0) + v
             elif v < count_threshold:
-                collapsed_counts[OTHER_KEY] = collapsed_counts.get(OTHER_KEY, 0) + v
+                if dimension == "os":
+                    # create generic key per os name
+                    [os, ver] = k.split("-", 1)
+                    generic_os_key = os + "-" + "Other"
+                    collapsed_counts[generic_os_key] = collapsed_counts.get(generic_os_key, 0) + v
+                else:
+                    collapsed_counts[OTHER_KEY] = collapsed_counts.get(OTHER_KEY, 0) + v
             else:
                 collapsed_counts[k] = v
         collapsed_groups[dimension] = collapsed_counts
