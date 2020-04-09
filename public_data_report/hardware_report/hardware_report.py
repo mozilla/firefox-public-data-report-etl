@@ -48,7 +48,8 @@ def load_data(spark, date_from, date_to):
     latest_per_client AS (
       SELECT
         environment.build.architecture AS browser_arch,
-        environment.system.os.name AS os_name,
+        COALESCE(environment.system.os.name,
+            'Other') AS os_name,
         COALESCE(
             IF (environment.system.os.name='Linux',
                 REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+\.[0-9]+"),
