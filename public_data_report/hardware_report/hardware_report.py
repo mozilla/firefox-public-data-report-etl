@@ -313,7 +313,9 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
                     # create generic key per os name
                     [os, ver] = k.split("-", 1)
                     generic_os_key = os + "-" + "Other"
-                    collapsed_counts[generic_os_key] = collapsed_counts.get(generic_os_key, 0) + v
+                    collapsed_counts[generic_os_key] = (
+                        collapsed_counts.get(generic_os_key, 0) + v
+                    )
                 else:
                     collapsed_counts[OTHER_KEY] = collapsed_counts.get(OTHER_KEY, 0) + v
             else:
@@ -384,10 +386,10 @@ def upload_data_s3(spark, bq_table_name, s3_bucket, s3_path):
         "os_arch",
         "has_flash",
     ]
-    selectExprs = ["date_from AS date"]
+    select_exprs = ["date_from AS date"]
     for field in map_fields:
-        selectExprs.append(f"MAP_FROM_ENTRIES({field}.key_value) AS {field}")
-    aggregates = hardware_aggregates_df.selectExpr(selectExprs).toJSON().collect()
+        select_exprs.append(f"MAP_FROM_ENTRIES({field}.key_value) AS {field}")
+    aggregates = hardware_aggregates_df.selectExpr(select_exprs).toJSON().collect()
 
     aggregates_flattened = sorted(
         flatten_aggregates(aggregates), key=lambda a: a["date"], reverse=True
