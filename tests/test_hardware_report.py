@@ -1,6 +1,6 @@
 from public_data_report.hardware_report import hardware_report
 
-from pyspark.sql.types import *
+from pyspark.sql.types import BooleanType, DoubleType, LongType, StringType, StructField, StructType
 from pyspark.sql import SparkSession
 
 
