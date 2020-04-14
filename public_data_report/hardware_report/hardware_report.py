@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def load_data(spark, date_from, date_to):
-    """Load a set of metrics per client for the provided timeframe.
+    """Load a set of aggregated metrics for the provided timeframe.
   
-    Returns Spark dataframe with a row per client.
+    Returns Spark dataframe containing preaggregated user counts per various dimensions.
 
     Args:
         date_from: Start date (inclusive)
