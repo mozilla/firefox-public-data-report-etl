@@ -115,7 +115,7 @@ def test_aggregate():
             "GenuineIntel",
             None,
             False,
-            1,
+            5,
         ],
     ]
 
@@ -135,6 +135,7 @@ def test_aggregate():
             "os_arch": "x86-64",
             "gfx0_vendor_name": "NVIDIA",
             "gfx0_model": "Maxwell-GM204",
+            "count": 1,
         },
         {
             "os": "Windows_NT-6.2",
@@ -148,6 +149,7 @@ def test_aggregate():
             "os_arch": "x86-64",
             "gfx0_vendor_name": "Microsoft Basic",
             "gfx0_model": "Unknown",
+            "count": 5,
         },
     ]
 
@@ -155,17 +157,17 @@ def test_aggregate():
 
     aggregated = hardware_report.aggregate(test_df)
     aggregated_expected = {
-        "os": {"Windows_NT-10.0": 1, "Windows_NT-6.2": 1},
-        "arch": {"x86-64": 2},
-        "cpu_cores": {4: 2},
-        "cpu_vendor": {"GenuineIntel": 2},
-        "cpu_speed": {3.6: 1, 1: 1},
-        "resolution": {"1920x1080": 2},
-        "memory_gb": {14: 1, 17: 1},
-        "has_flash": {True: 1, False: 1},
-        "os_arch": {"x86-64": 2},
-        "gfx0_vendor_name": {"NVIDIA": 1, "Microsoft Basic": 1},
-        "gfx0_model": {"Maxwell-GM204": 1, "Unknown": 1},
+        "os": {"Windows_NT-10.0": 1, "Windows_NT-6.2": 5},
+        "arch": {"x86-64": 6},
+        "cpu_cores": {4: 6},
+        "cpu_vendor": {"GenuineIntel": 6},
+        "cpu_speed": {3.6: 1, 1: 5},
+        "resolution": {"1920x1080": 6},
+        "memory_gb": {14: 1, 17: 5},
+        "has_flash": {True: 1, False: 5},
+        "os_arch": {"x86-64": 6},
+        "gfx0_vendor_name": {"NVIDIA": 1, "Microsoft Basic": 5},
+        "gfx0_model": {"Maxwell-GM204": 1, "Unknown": 5},
     }
 
     assert aggregated == aggregated_expected

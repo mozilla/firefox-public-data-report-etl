@@ -7,8 +7,8 @@ import requests
 
 from google.cloud import bigquery
 
+from pyspark.sql import functions as F
 from pyspark.sql import SparkSession, Row
-
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -280,11 +280,13 @@ def to_dict(row):
         "gfx0_model": get_device_family_chipset(
             row["gfx0_vendor_id"], row["gfx0_device_id"], DEVICE_MAP
         ),
+        "count": row["count"],
     }
 
 
 def add_counts(dict):
-    return {k: {v: 1} for k, v in dict.items()}
+    count = dict["count"]
+    return {k: {v: count} for k, v in dict.items() if k != "count"}
 
 
 def combine(acc, row):
@@ -456,7 +458,7 @@ def main(date_from, bq_table, s3_bucket, s3_path, past_weeks):
         aggregated = aggregate(hardware_by_dimensions_df)
 
         # Collapse together groups that count less than 1% of our samples.
-        sample_count = hardware_by_dimensions_df.count()
+        sample_count = hardware_by_dimensions_df.agg(F.sum("count")).collect()[0][0]
         threshold_to_collapse = int(sample_count * 0.01)
 
         aggregates = collapse_buckets(aggregated, threshold_to_collapse, sample_count)
