@@ -52,7 +52,7 @@ def load_data(spark, date_from, date_to):
             'Other') AS os_name,
         COALESCE(
             IF (environment.system.os.name IN ('Linux', 'Darwin'),
-                REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+"),
+                CONCAT(REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+"), '.x'),
                 environment.system.os.version),
             'Other') AS os_version,
         environment.system.memory_mb,
@@ -197,14 +197,15 @@ def get_device_family_chipset(vendor_id, device_id, device_map):
         device_id: a string representing the device id (e.g. '0xbcde').
 
     Returns:
-        A string in the format "Device Family Name-Chipset Name".
+        A string in the format "Device Family Name-Chipset Name"
+        or "Other" if unknown.
 
     """
     if vendor_id not in device_map:
-        return "Unknown"
+        return "Other"
 
     if device_id not in device_map[vendor_id]:
-        return "Unknown"
+        return "Other"
 
     return "-".join(device_map[vendor_id][device_id])
 

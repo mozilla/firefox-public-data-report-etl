@@ -60,12 +60,12 @@ def test_hardware_report_helpers():
     )
     assert (
         hardware_report.get_device_family_chipset("0xfeee", "0xdeee", device_map)
-        == "Unknown"
-    ), "Unknown devices must be reported as 'Unknown'."
+        == "Other"
+    ), "Unknown devices must be reported as 'Other'."
     assert (
         hardware_report.get_device_family_chipset("0xfeeb", "0xdeee", device_map)
-        == "Unknown"
-    ), "Unknown families must be reported as 'Unknown'."
+        == "Other"
+    ), "Unknown families must be reported as 'Other'."
 
 
 def test_aggregate():
@@ -148,7 +148,7 @@ def test_aggregate():
             "has_flash": False,
             "os_arch": "x86-64",
             "gfx0_vendor_name": "Microsoft Basic",
-            "gfx0_model": "Unknown",
+            "gfx0_model": "Other",
             "count": 5,
         },
     ]
@@ -167,7 +167,7 @@ def test_aggregate():
         "has_flash": {True: 1, False: 5},
         "os_arch": {"x86-64": 6},
         "gfx0_vendor_name": {"NVIDIA": 1, "Microsoft Basic": 5},
-        "gfx0_model": {"Maxwell-GM204": 1, "Unknown": 5},
+        "gfx0_model": {"Maxwell-GM204": 1, "Other": 5},
     }
 
     assert aggregated == aggregated_expected
@@ -185,7 +185,7 @@ def test_collapse_buckets():
         "has_flash": {True: 1, False: 99},
         "os_arch": {"x86-64": 100},
         "gfx0_vendor_name": {"NVIDIA": 60, "Microsoft Basic": 40},
-        "gfx0_model": {"Maxwell-GM204": 95, "Unknown": 5},
+        "gfx0_model": {"Maxwell-GM204": 95, "Other": 5},
     }
     collapsed_expected = {
         "os": {"Windows_NT-10.0": 0.95, "Other": 0.05},
