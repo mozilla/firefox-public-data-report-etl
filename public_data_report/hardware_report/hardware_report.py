@@ -51,8 +51,8 @@ def load_data(spark, date_from, date_to):
         COALESCE(environment.system.os.name,
             'Other') AS os_name,
         COALESCE(
-            IF (environment.system.os.name='Linux',
-                REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+\.[0-9]+"),
+            IF (environment.system.os.name IN ('Linux', 'Darwin'),
+                REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+"),
                 environment.system.os.version),
             'Other') AS os_version,
         environment.system.memory_mb,
