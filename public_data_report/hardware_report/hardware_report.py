@@ -429,6 +429,7 @@ date_type = click.DateTime()
     help="Aggregation start date (e.g. yyyy-mm-dd)",
 )
 @click.option("--bq_table", required=True, help="Output BigQuery table")
+@click.option("--temporary_gcs_bucket", required=True, help="GCS bucket for writing to BigQuery")
 @click.option("--s3_bucket", required=True, help="S3 bucket for storing data")
 @click.option("--s3_path", required=True, help="S3 path for storing data")
 @click.option(
@@ -437,7 +438,7 @@ date_type = click.DateTime()
     default=0,
     help="Number of past weeks to include (useful for backfills)",
 )
-def main(date_from, bq_table, s3_bucket, s3_path, past_weeks):
+def main(date_from, bq_table, temporary_gcs_bucket, s3_bucket, s3_path, past_weeks):
     """Generate weekly hardware report for [date_from, date_from_7) timeframe
   
   Aggregates are incrementally inserted to provided BigQuery table,
@@ -469,7 +470,7 @@ def main(date_from, bq_table, s3_bucket, s3_path, past_weeks):
         # save to BQ
         aggregates_df = spark.createDataFrame(Row(**x) for x in [aggregates])
         aggregates_df.write.format("bigquery").option("table", bq_table).option(
-            "temporaryGcsBucket", "spark-bigquery-dev-test"
+            "temporaryGcsBucket", temporary_gcs_bucket
         ).mode("append").save()
 
     upload_data_s3(spark, bq_table, s3_bucket, s3_path)
