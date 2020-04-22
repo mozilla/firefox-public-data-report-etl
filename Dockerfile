@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Install python
 RUN apt-get update \
-  && apt-get install -y python3-pip python3-dev \
+  && apt-get install -y python3-pip python3-dev openjdk-8-jdk \
   && cd /usr/local/bin \
   && ln -s /usr/bin/python3 python \
   && pip3 install --upgrade pip
@@ -16,10 +16,9 @@ RUN apt-get update \
 # ENV PYTHONPATH $PYTHONPATH:/app/hardware_report:/app/tests
 
 # ENV PATH="$PATH:~/.local/bin"
-RUN pip3 install tox setuptools wheel flake8
+RUN pip3 install --upgrade pip && pip3 install tox setuptools wheel flake8
 
 COPY . /app
 RUN chown -R 10001:10001 /app
 
-RUN pip3 install --upgrade pip && \
-        pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt
