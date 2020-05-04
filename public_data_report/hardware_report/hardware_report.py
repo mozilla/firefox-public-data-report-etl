@@ -266,7 +266,7 @@ DEVICE_MAP = build_device_map()
 
 
 def to_dict(row):
-    cpu_speed = 1 if row["cpu_speed"] is None else round(row["cpu_speed"] / 1000.0, 1)
+    cpu_speed = "Other" if row["cpu_speed"] is None else str(round(row["cpu_speed"] / 1000.0, 1))
     return {
         "os": row["os"],
         "arch": row["browser_arch"],
@@ -322,7 +322,7 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
                 else:
                     collapsed_counts[OTHER_KEY] = collapsed_counts.get(OTHER_KEY, 0) + v
             else:
-                collapsed_counts[k] = v
+                collapsed_counts[k] = collapsed_counts.get(k, 0) + v
         if dimension == "os":
             # The previous grouping might have created additional os groups.
             # Let's check again.
