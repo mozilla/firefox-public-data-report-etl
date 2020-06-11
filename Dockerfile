@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM python:3.7-buster
 
 # add a non-privileged user for running the application
 RUN groupadd --gid 10001 app && \
@@ -6,19 +6,15 @@ RUN groupadd --gid 10001 app && \
 
 WORKDIR /app
 
-# Install python
-RUN apt-get update \
-  && apt-get install -y python3-pip python3-dev openjdk-8-jdk \
-  && cd /usr/local/bin \
-  && ln -s /usr/bin/python3 python \
-  && pip3 install --upgrade pip
-
-# ENV PYTHONPATH $PYTHONPATH:/app/hardware_report:/app/tests
-
-# ENV PATH="$PATH:~/.local/bin"
-RUN pip3 install --upgrade pip && pip3 install tox setuptools wheel flake8
+# Install Java
+RUN apt-get update && apt-get install -y openjdk-11-jre
 
 COPY . /app
+
+RUN pip install --upgrade pip && pip install tox setuptools wheel flake8
+
 RUN chown -R 10001:10001 /app
 
-RUN pip3 install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+ENTRYPOINT ["/usr/local/bin/python"]
