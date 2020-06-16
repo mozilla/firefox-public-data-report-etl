@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def load_data(spark, date_from, date_to):
     """Load a set of aggregated metrics for the provided timeframe.
-  
+
     Returns Spark dataframe containing preaggregated user counts per various dimensions.
 
     Args:
@@ -72,7 +72,9 @@ def load_data(spark, date_from, date_to):
         environment.system.cpu.cores AS cpu_cores,
         environment.system.cpu.vendor AS cpu_vendor,
         environment.system.cpu.speed_m_hz AS cpu_speed,
-        'Shockwave Flash' IN (SELECT name FROM UNNEST(environment.addons.active_plugins)) AS has_flash
+        'Shockwave Flash' IN (
+            SELECT name FROM UNNEST(environment.addons.active_plugins)
+            ) AS has_flash
       FROM
         latest_per_client_all
     ),
@@ -94,7 +96,7 @@ def load_data(spark, date_from, date_to):
     ),
     by_dimensions AS (
       SELECT
-        *, 
+        *,
         count(*) AS count
       FROM
         transformed
@@ -111,7 +113,7 @@ def load_data(spark, date_from, date_to):
         cpu_speed,
         has_flash
     )
-    select * from by_dimensions 
+    select * from by_dimensions
   """
 
     job_config = bigquery.QueryJobConfig(
@@ -440,7 +442,7 @@ date_type = click.DateTime()
 )
 def main(date_from, bq_table, temporary_gcs_bucket, s3_bucket, s3_path, past_weeks):
     """Generate weekly hardware report for [date_from, date_from_7) timeframe
-  
+
   Aggregates are incrementally inserted to provided BigQuery table,
   finally table is exported to JSON and copied to S3.
   """
@@ -453,7 +455,7 @@ def main(date_from, bq_table, temporary_gcs_bucket, s3_bucket, s3_path, past_wee
         batch_date_from = date_from - timedelta(weeks=1 * batch_number)
         batch_date_to = batch_date_from + timedelta(days=7)
         logger.info(
-            f"Running batch {batch_number}/{past_weeks}, timeframe: [{batch_date_from}, {batch_date_to})"
+            f"Running batch {batch_number}/{past_weeks}, timeframe: [{batch_date_from}, {batch_date_to})"  # noqa
         )
         hardware_by_dimensions_df = load_data(spark, batch_date_from, batch_date_to)
 
