@@ -13,13 +13,20 @@ It produces weekly aggregates organized by various dimensions, which are stored 
 
 ### User Activity
 [User activity job](public_data_report/user_activity) exports a BigQuery table containing following metrics:
+
+User Activity (`fxhealth.json`):
 * Monthly Active users (MAU) - number of clients that used Firefox in the past 28 days
 * Average daily usage hours - average daily use of a typical client from the past 7 days. Calculated by getting the average daily use for each client from the last week (on days they used), and then averaging across all clients
 * Average intensity - average daily intensity of use of a typical client from the past 7 days. Intensity shows how many days per week do users use the product
 * New profile rate - percentage of WAU (clients who used Firefox in the past 7 days) that are new clients (created profile that week)
 * Latest version ratio - percentage of WAU on the newest version (or newer) of Firefox (for that week). Note, Firefox updates are often released with different throttling rates (i.e. 10% of population in week 1, etc.).
 
-You can run this job localy from a Docker container:
+Usage Behavior (`webusage.json`):
+* Top languages - percentage of WAU on each of the top 5 language setting (locale).
+* Has Add-on - Percentage of WAU with at least 1 user installed addon.
+* Top Add-ons - The top 10 most common user installed addons from the last 7 days.
+
+You can run this job locally from a Docker container:
 ```shell script
 make build && \
 docker run \
@@ -32,7 +39,7 @@ docker run \
     user_activity \
     --bq_table moz-fx-data-shared-prod.analysis.public_data_report_user_activity \
     --s3_bucket telemetry-public-analysis-2 \
-    --s3_path public-data-report-dev/user_activity/fxhealth.json
+    --s3_path public-data-report-dev/user_activity
 ```
 
 ## Development

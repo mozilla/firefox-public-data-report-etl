@@ -24,32 +24,56 @@ def main(bq_table, s3_bucket, s3_path):
 
     QUERY = (
         "SELECT FORMAT_DATE('%Y-%m-%d', week_start) AS date, country_name, mau,"
-        " avg_hours_usage_daily, intensity, new_profile_rate, latest_version_ratio"
+        " avg_hours_usage_daily, intensity, new_profile_rate, latest_version_ratio,"
+        " top_addons, has_addon_ratio, top_locales"
         f" FROM `{bq_table}`"
         )
-    query_job = client.query(QUERY)  # API request
-    rows = query_job.result()  # Waits for query to finish
+    query_job = client.query(QUERY)
+    rows = query_job.result()
 
-    out = {}
+    user_activity_metrics = {}
+    web_usage_metrics = {}
 
     for row in rows:
-        if row.country_name not in out:
-            out[row.country_name] = []
+        if row.country_name not in user_activity_metrics \
+                and row.country_name not in web_usage_metrics:
+            user_activity_metrics[row.country_name] = []
+            web_usage_metrics[row.country_name] = []
 
-        out[row.country_name].append({
+        user_activity_metrics[row.country_name].append({
             "date": row.date,
             "metrics": {
                 "avg_intensity": float(row.intensity),
-                "MAU": row.mau,
+                "MAU": row.mau * 100,
                 "avg_daily_usage(hours)": float(row.avg_hours_usage_daily),
-                "pct_new_user": float(row.new_profile_rate),
-                "pct_latest_version": float(row.latest_version_ratio)
+                "pct_new_user": float(row.new_profile_rate) * 100,
+                "pct_latest_version": float(row.latest_version_ratio) * 100
             }
         })
+        web_usage_metrics[row.country_name].append({
+                "date": row.date,
+                "metrics": {
+                    "locale": {l["locale"]: l["ratio"] * 100 for l in row["top_locales"]}, # noqa
+                    "top10addons": {a["addon_name"]: a["ratio"] * 100 for a in row["top_addons"]}, # noqa
+                    "pct_addon": row["has_addon_ratio"] * 100
+                }
+            })
 
-    out_json = json.dumps(out, indent=4)
+    user_activity_metrics_json = json.dumps(user_activity_metrics, indent=4)
     client = boto3.client('s3')
-    client.put_object(Body=out_json, Bucket=s3_bucket, Key=s3_path)
+    client.put_object(
+        Body=user_activity_metrics_json,
+        Bucket=s3_bucket,
+        Key=f"{s3_path}/fxhealth.json"
+    )
+
+    web_usage_metrics_json = json.dumps(web_usage_metrics, indent=4)
+    client = boto3.client('s3')
+    client.put_object(
+        Body=web_usage_metrics_json,
+        Bucket=s3_bucket,
+        Key=f"{s3_path}/webusage.json"
+    )
 
 
 if __name__ == "__main__":

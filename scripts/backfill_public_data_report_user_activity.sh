@@ -8,4 +8,4 @@ cat public_data_report_user_activity.sql | bq query \
     --destination_table=moz-fx-data-shared-prod:telemetry_derived.public_data_report_user_activity_v1 \
     --use_legacy_sql=false \
     --replace=true \
-    --project_id=spark-bigquery-dev
+    --project_id=moz-fx-data-derived-datasets
