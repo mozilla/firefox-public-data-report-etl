@@ -9,12 +9,14 @@ WORKDIR /app
 # Install Java
 RUN apt-get update && apt-get install -y openjdk-11-jre
 
-COPY . /app
-
 RUN pip install --upgrade pip && pip install tox setuptools wheel flake8
+
+ADD ./requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+ADD . /app
 
 RUN chown -R 10001:10001 /app
 
-RUN pip install --no-cache-dir -r requirements.txt
 
 ENTRYPOINT ["/usr/local/bin/python"]
