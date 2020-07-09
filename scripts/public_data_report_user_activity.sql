@@ -40,6 +40,7 @@ sample AS (
                  'Russia',
                  'United States')
         AND submission_date >= '2018-12-31'
+        AND submission_date < '2020-06-29'
         AND subsession_hours_sum < 24
         AND sample_id = 1
 ),
