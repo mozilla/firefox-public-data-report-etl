@@ -324,7 +324,7 @@ top_locales AS (
     country_name
 )
 SELECT
-    mau_wau.week_start,
+    mau_wau.week_start AS submission_date,
     mau_wau.country_name,
     mau_wau.mau,
     daily_usage.avg_hours_usage_daily,
@@ -358,5 +358,4 @@ USING
     (week_start, country_name)
 WHERE
     mau_wau.week_start NOT IN ('2019-04-29', '2019-05-06') --armagaddon: https://blog.mozilla.org/blog/2019/05/09/what-we-do-when-things-go-wrong/
-ORDER BY
-    week_start, country_name
+
