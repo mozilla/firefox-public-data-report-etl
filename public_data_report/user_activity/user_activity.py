@@ -23,7 +23,7 @@ def main(bq_table, s3_bucket, s3_path):
     client = bigquery.Client()
 
     QUERY = (
-        "SELECT FORMAT_DATE('%Y-%m-%d', week_start) AS date, country_name, mau,"
+        "SELECT FORMAT_DATE('%Y-%m-%d', submission_date) AS date, country_name, mau,"
         " avg_hours_usage_daily, intensity, new_profile_rate, latest_version_ratio,"
         " top_addons, has_addon_ratio, top_locales"
         f" FROM `{bq_table}`"
