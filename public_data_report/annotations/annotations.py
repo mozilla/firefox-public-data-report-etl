@@ -41,8 +41,8 @@ date_type = click.DateTime()
     required=True,
     help="End date for producing version release dates",
 )
-@click.option('--output-bucket', required=True)
-@click.option('--output-prefix', required=True)
+@click.option('--output_bucket', required=True)
+@click.option('--output_prefix', required=True)
 def main(date_to, output_bucket, output_prefix):
     """Export annotations to S3"""
 
