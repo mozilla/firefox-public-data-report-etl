@@ -33,4 +33,4 @@ workflows:
           image: firefox-public-data-report-etl
           filters:
             branches:
-              only: master
+              only: main
