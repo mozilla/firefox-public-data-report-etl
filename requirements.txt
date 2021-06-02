@@ -30,7 +30,7 @@ requests==2.23.0          # via firefox-public-data-report-etl (setup.py), googl
 rsa==4.6                  # via google-auth
 s3transfer==0.3.3         # via boto3
 six==1.14.0               # via google-api-core, google-auth, google-cloud-bigquery, google-resumable-media, protobuf, python-dateutil
-urllib3==1.25.8           # via botocore, requests
+urllib3==1.26.5           # via botocore, requests
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
