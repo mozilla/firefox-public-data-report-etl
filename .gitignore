@@ -3,3 +3,4 @@
 firefox_public_data_report_etl.egg-info
 __pycache__
 .python-version
+.git/
