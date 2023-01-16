@@ -142,7 +142,7 @@ active_clients_weekly as (
     SELECT
         country_name,
         client_id,
-        split(app_version, '.')[offset(0)] as major_version,
+        `mozfun.norm.truncate_version`(app_version, "major") as major_version,
         date_sub(submission_date, interval days_since_seen DAY) as last_day_seen,
         week_start
     FROM
@@ -153,7 +153,7 @@ active_clients_weekly as (
 ),
 latest_releases AS (
     SELECT
-        MAX(SPLIT(build.target.version, '.')[OFFSET(0)]) AS latest_major_version,
+        MAX(`mozfun.norm.truncate_version`(build.target.version, "major")) AS latest_major_version,
         DATE(build.build.date) AS day
     FROM
         `moz-fx-data-shared-prod.telemetry.buildhub2`
