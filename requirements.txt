@@ -23,7 +23,7 @@ protobuf==3.12.2          # via google-api-core, google-cloud-bigquery, googleap
 py4j==0.10.7              # via pyspark
 pyasn1-modules==0.2.8     # via google-auth
 pyasn1==0.4.8             # via pyasn1-modules, rsa
-pyspark==2.4.5            # via firefox-public-data-report-etl (setup.py)
+pyspark==3.2.2            # via firefox-public-data-report-etl (setup.py)
 python-dateutil==2.8.1    # via botocore
 pytz==2020.1              # via google-api-core
 requests==2.23.0          # via firefox-public-data-report-etl (setup.py), google-api-core
