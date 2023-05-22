@@ -15,6 +15,6 @@ setup(
         "click == 7.1.1",
         "google-cloud-bigquery == 1.24.0",
         "pyspark >= 2.4.0",
-        "requests == 2.23.0",
+        "requests == 2.31.0",
     ],
 )

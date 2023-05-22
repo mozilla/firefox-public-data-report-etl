@@ -26,7 +26,7 @@ pyasn1==0.4.8             # via pyasn1-modules, rsa
 pyspark==2.4.5            # via firefox-public-data-report-etl (setup.py)
 python-dateutil==2.8.1    # via botocore
 pytz==2020.1              # via google-api-core
-requests==2.23.0          # via firefox-public-data-report-etl (setup.py), google-api-core
+requests==2.31.0          # via firefox-public-data-report-etl (setup.py), google-api-core
 rsa==4.6                  # via google-auth
 s3transfer==0.3.3         # via boto3
 six==1.14.0               # via google-api-core, google-auth, google-cloud-bigquery, google-resumable-media, protobuf, python-dateutil
