@@ -1,9 +1,8 @@
-import boto3
 import click
 import json
 import logging
 
-from google.cloud import bigquery
+from google.cloud import bigquery, storage
 
 
 logging.basicConfig(level=logging.INFO)
@@ -13,12 +12,12 @@ logger = logging.getLogger(__name__)
 @click.command()
 @click.option("--bq_table", required=True,
               help="Input BigQuery table containing aggregated metrics")
-@click.option("--s3_bucket", required=True, help="S3 bucket for exporting data")
-@click.option("--s3_path", required=True, help="S3 path for exporting data")
-def main(bq_table, s3_bucket, s3_path):
-    """Export User Activity aggregated table to S3"""
+@click.option("--gcs_bucket", required=True, help="GCS bucket for exporting data")
+@click.option("--gcs_path", required=True, help="GCS path for exporting data")
+def main(bq_table, gcs_bucket, gcs_path):
+    """Export User Activity aggregated table to GCS"""
 
-    logger.info(f"Starting export from {bq_table} to {s3_bucket}/{s3_path}")
+    logger.info(f"Starting export from {bq_table} to {gcs_bucket}/{gcs_path}")
 
     client = bigquery.Client()
 
@@ -59,21 +58,16 @@ def main(bq_table, s3_bucket, s3_path):
                 }
             })
 
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(gcs_bucket)
+
     user_activity_metrics_json = json.dumps(user_activity_metrics, indent=4)
-    client = boto3.client('s3')
-    client.put_object(
-        Body=user_activity_metrics_json,
-        Bucket=s3_bucket,
-        Key=f"{s3_path}/fxhealth.json"
-    )
+    blob_fxhealth = bucket.blob(f"{gcs_path}/fxhealth.json")
+    blob_fxhealth.upload_from_string(user_activity_metrics_json, content_type="application/json")
 
     web_usage_metrics_json = json.dumps(web_usage_metrics, indent=4)
-    client = boto3.client('s3')
-    client.put_object(
-        Body=web_usage_metrics_json,
-        Bucket=s3_bucket,
-        Key=f"{s3_path}/webusage.json"
-    )
+    blob_webusage = bucket.blob(f"{gcs_path}/webusage.json")
+    blob_webusage.upload_from_string(web_usage_metrics_json, content_type="application/json")
 
 
 if __name__ == "__main__":
