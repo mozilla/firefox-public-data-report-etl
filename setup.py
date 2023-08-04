@@ -13,8 +13,8 @@ setup(
     install_requires=[
         "boto3 == 1.12.33",
         "click == 7.1.1",
-        "google-cloud-bigquery == 1.24.0",
-        "google-cloud-storage==2.7.0",
+        "google-cloud-bigquery == 3.11.4",
+        "google-cloud-storage == 2.7.0",
         "pyspark >= 2.4.0",
         "requests == 2.23.0",
     ],
