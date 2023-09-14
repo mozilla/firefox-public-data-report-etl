@@ -11,7 +11,6 @@ setup(
     packages=find_packages(exclude=['tests']),
     include_package_data=True,
     install_requires=[
-        "boto3 == 1.12.33",
         "click == 7.1.1",
         "google-cloud-bigquery == 3.11.4",
         "google-cloud-storage == 2.7.0",

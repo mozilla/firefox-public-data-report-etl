@@ -61,7 +61,8 @@ def main(date_to, output_bucket, output_prefix):
                 latest_version_per_day AS (
                     SELECT
                         day,
-                        MAX(`mozfun.norm.truncate_version`(build.target.version, "major")) AS version
+                        MAX(`mozfun.norm.truncate_version`(build.target.version, "major")
+                    ) AS version
                     FROM
                         `moz-fx-data-shared-prod.telemetry.buildhub2`
                     JOIN

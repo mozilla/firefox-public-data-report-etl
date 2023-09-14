@@ -420,7 +420,6 @@ def upload_data_gcs(spark, bq_table_name, gcs_bucket, gcs_path):
     blob_latest.upload_from_filename("hwsurvey-weekly.json")
 
 
-
 date_type = click.DateTime()
 
 

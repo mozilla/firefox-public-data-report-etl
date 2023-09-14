@@ -4,12 +4,6 @@
 #
 #    pip-compile
 #
-boto3==1.12.33
-    # via firefox-public-data-report-etl (setup.py)
-botocore==1.15.33
-    # via
-    #   boto3
-    #   s3transfer
 cachetools==4.1.0
     # via google-auth
 certifi==2019.11.28
@@ -18,8 +12,6 @@ chardet==3.0.4
     # via requests
 click==7.1.1
     # via firefox-public-data-report-etl (setup.py)
-docutils==0.15.2
-    # via botocore
 google-api-core[grpc]==2.11.1
     # via
     #   google-cloud-bigquery
@@ -57,10 +49,6 @@ grpcio-status==1.56.2
     # via google-api-core
 idna==2.9
     # via requests
-jmespath==0.9.5
-    # via
-    #   boto3
-    #   botocore
 packaging==23.1
     # via google-cloud-bigquery
 proto-plus==1.22.3
@@ -83,9 +71,7 @@ pyasn1-modules==0.2.8
 pyspark==2.4.5
     # via firefox-public-data-report-etl (setup.py)
 python-dateutil==2.8.1
-    # via
-    #   botocore
-    #   google-cloud-bigquery
+    # via google-cloud-bigquery
 requests==2.23.0
     # via
     #   firefox-public-data-report-etl (setup.py)
@@ -94,14 +80,11 @@ requests==2.23.0
     #   google-cloud-storage
 rsa==4.6
     # via google-auth
-s3transfer==0.3.3
-    # via boto3
 six==1.14.0
     # via
     #   google-auth
     #   python-dateutil
 urllib3==1.25.8
     # via
-    #   botocore
     #   google-auth
     #   requests
