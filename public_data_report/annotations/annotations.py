@@ -1,11 +1,10 @@
-import boto3
 import click
 import importlib.resources as pkg_resources
 from . import static
 import json
 import logging
 
-from google.cloud import bigquery
+from google.cloud import bigquery, storage
 
 
 logging.basicConfig(level=logging.INFO)
@@ -44,7 +43,7 @@ date_type = click.DateTime()
 @click.option('--output_bucket', required=True)
 @click.option('--output_prefix', required=True)
 def main(date_to, output_bucket, output_prefix):
-    """Export annotations to S3"""
+    """Export annotations to GCS"""
 
     client = bigquery.Client()
 
@@ -62,7 +61,8 @@ def main(date_to, output_bucket, output_prefix):
                 latest_version_per_day AS (
                     SELECT
                         day,
-                        MAX(`mozfun.norm.truncate_version`(build.target.version, "major")) AS version
+                        MAX(`mozfun.norm.truncate_version`(build.target.version, "major")
+                    ) AS version
                     FROM
                         `moz-fx-data-shared-prod.telemetry.buildhub2`
                     JOIN
@@ -101,20 +101,15 @@ def main(date_to, output_bucket, output_prefix):
 
     fxhealth_annotations_json = json.dumps(fxhealth_annotations, indent=4)
 
-    client = boto3.client('s3')
-    client.put_object(
-        Body=fxhealth_annotations_json,
-        Bucket=output_bucket,
-        Key=f"{output_prefix}/annotations_fxhealth.json"
-    )
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(output_bucket)
+    blob_annotation = bucket.blob(f"{output_prefix}/annotations_fxhealth.json")
+    blob_annotation.upload_from_string(fxhealth_annotations_json, content_type="application/json")
 
     for static_annotation_file in STATIC_ANNOTATIONS:
         data = pkg_resources.read_text(static, static_annotation_file)
-        client.put_object(
-            Body=data,
-            Bucket=output_bucket,
-            Key=f"{output_prefix}/{static_annotation_file}"
-        )
+        blob_static_annotation = bucket.blob(f"{output_prefix}/{static_annotation_file}")
+        blob_static_annotation.upload_from_string(data)
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ WORKDIR /app
 # Install Java
 RUN apt-get update && apt-get install -y openjdk-11-jre
 
-RUN pip install --upgrade pip && pip install tox setuptools wheel flake8
+RUN pip install --upgrade pip && pip install tox setuptools wheel flake8==5.0.4
 
 ADD ./requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt

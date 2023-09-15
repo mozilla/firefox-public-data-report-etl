@@ -1,11 +1,10 @@
-import boto3
 import click
 from datetime import datetime, timedelta
 import json
 import logging
 import requests
 
-from google.cloud import bigquery
+from google.cloud import bigquery, storage
 
 from pyspark.sql import functions as F
 from pyspark.sql import SparkSession, Row
@@ -373,7 +372,7 @@ def flatten_aggregates(aggregates):
     return flattened_list
 
 
-def upload_data_s3(spark, bq_table_name, s3_bucket, s3_path):
+def upload_data_gcs(spark, bq_table_name, gcs_bucket, gcs_path):
     hardware_aggregates_df = (
         spark.read.format("bigquery").option("table", bq_table_name).load()
     )
@@ -404,20 +403,21 @@ def upload_data_s3(spark, bq_table_name, s3_bucket, s3_path):
     with open("hwsurvey-weekly.json", "w") as output_file:
         output_file.write(aggregates_flattened_json)
 
-    # Store dataset to S3. Since S3 doesn't support symlinks, make
+    # Store dataset to GCS. Since GCS doesn't support symlinks, make
     # two copies of the file: one will always contain the latest data,
     # the other for archiving.
     archived_file_copy = f"hwsurvey-weekly-{datetime.today().strftime('%Y-%m-%d')}.json"
 
-    logger.info(f"Uploading data to s3 bucket: {s3_bucket}, path: {s3_path}")
-    client = boto3.client("s3", "us-west-2")
-    transfer = boto3.s3.transfer.S3Transfer(client)
-    transfer.upload_file(
-        "hwsurvey-weekly.json", s3_bucket, s3_path + archived_file_copy
-    )
-    transfer.upload_file(
-        "hwsurvey-weekly.json", s3_bucket, s3_path + "hwsurvey-weekly.json"
-    )
+    logger.info(f"Uploading data to gcs bucket: {gcs_bucket}, path: {gcs_path}")
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(gcs_bucket)
+
+    blob_archive = bucket.blob(gcs_path + archived_file_copy)
+    blob_archive.upload_from_filename("hwsurvey-weekly.json")
+
+    blob_latest = bucket.blob(gcs_path + "hwsurvey-weekly.json")
+    blob_latest.upload_from_filename("hwsurvey-weekly.json")
 
 
 date_type = click.DateTime()
@@ -432,19 +432,19 @@ date_type = click.DateTime()
 )
 @click.option("--bq_table", required=True, help="Output BigQuery table")
 @click.option("--temporary_gcs_bucket", required=True, help="GCS bucket for writing to BigQuery")
-@click.option("--s3_bucket", required=True, help="S3 bucket for storing data")
-@click.option("--s3_path", required=True, help="S3 path for storing data")
+@click.option("--gcs_bucket", required=True, help="GCS bucket for storing data")
+@click.option("--gcs_path", required=True, help="GCS path for storing data")
 @click.option(
     "--past_weeks",
     type=int,
     default=0,
     help="Number of past weeks to include (useful for backfills)",
 )
-def main(date_from, bq_table, temporary_gcs_bucket, s3_bucket, s3_path, past_weeks):
+def main(date_from, bq_table, temporary_gcs_bucket, gcs_bucket, gcs_path, past_weeks):
     """Generate weekly hardware report for [date_from, date_from_7) timeframe
 
   Aggregates are incrementally inserted to provided BigQuery table,
-  finally table is exported to JSON and copied to S3.
+  finally table is exported to JSON and copied to GCS.
   """
     date_from = date_from.date()
     logger.info(f"Starting, date_from={date_from}, past_weeks={past_weeks}")
@@ -475,7 +475,7 @@ def main(date_from, bq_table, temporary_gcs_bucket, s3_bucket, s3_path, past_wee
             "temporaryGcsBucket", temporary_gcs_bucket
         ).mode("append").save()
 
-    upload_data_s3(spark, bq_table, s3_bucket, s3_path)
+    upload_data_gcs(spark, bq_table, gcs_bucket, gcs_path)
 
     spark.stop()
 
