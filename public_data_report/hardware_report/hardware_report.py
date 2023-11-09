@@ -50,9 +50,17 @@ def load_data(spark, date_from, date_to):
         COALESCE(environment.system.os.name,
             'Other') AS os_name,
         COALESCE(
-            IF (environment.system.os.name IN ('Linux', 'Darwin'),
-                CONCAT(REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+"), '.x'),
-                environment.system.os.version),
+            CASE
+                WHEN environment.system.os.name IN ('Linux', 'Darwin')
+                    THEN CONCAT(REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+"), '.x')
+                WHEN
+                    environment.system.os.name = 'Windows_NT' and
+                    environment.system.os.version = '10.0' and
+                    environment.system.os.windows_build_number >= 22000 and
+                    environment.system.os.windows_build_number < 23000
+                    THEN '10.0.22xxx'
+                ELSE environment.system.os.version
+            END,
             'Other') AS os_version,
         environment.system.memory_mb,
         coalesce(environment.system.is_wow64, FALSE) AS is_wow64,
