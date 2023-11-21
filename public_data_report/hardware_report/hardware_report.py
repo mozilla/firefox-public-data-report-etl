@@ -31,7 +31,7 @@ def load_data(spark, date_from, date_to):
         *,
         ROW_NUMBER() OVER (PARTITION BY client_id ORDER BY submission_timestamp DESC) AS rn
       FROM
-        `moz-fx-data-shared-prod.telemetry_stable.main_v4`
+        `moz-fx-data-shared-prod.telemetry_stable.main_v5`
       WHERE
         DATE(submission_timestamp) >= @date_from
         AND DATE(submission_timestamp) < @date_to
