@@ -62,7 +62,7 @@ def load_data(spark, date_from, date_to):
                         CAST(CAST(
                             environment.system.os.windows_build_number / 10000 AS INT64
                             ) AS STRING), 'xxxx'
-                        )
+                        ) 
                 ELSE environment.system.os.version
             END,
             'Other') AS os_version,
