@@ -56,7 +56,7 @@ def load_data(spark, date_from, date_to):
                 WHEN
                     environment.system.os.name = 'Windows_NT' and
                     environment.system.os.version = '10.0' and
-                    environment.system.os.windows_build_number >= 10000
+                    environment.system.os.windows_build_number >= 20000
                     THEN CONCAT(
                         '10.0.',
                         CAST(CAST(
