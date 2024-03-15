@@ -11,17 +11,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 COUNTRIES = [
-    'Worldwide',
-    'United States',
-    'Germany',
-    'France',
-    'India',
-    'Brazil',
-    'China',
-    'Indonesia',
-    'Russia',
-    'Italy',
-    'Poland'
+    "Worldwide",
+    "United States",
+    "Germany",
+    "France",
+    "India",
+    "Brazil",
+    "China",
+    "Indonesia",
+    "Russia",
+    "Italy",
+    "Poland",
+    "Canada",
+    "Spain",
 ]
 
 # migrated from https://github.com/mozilla/Fx_Usage_Report/tree/489ca258b14776c01f3021080b2dd686d239dea3/usage_report/annotations # noqa
