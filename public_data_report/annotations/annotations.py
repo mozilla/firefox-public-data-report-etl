@@ -109,7 +109,7 @@ def main(date_to, output_bucket, output_prefix):
     for static_annotation_file in STATIC_ANNOTATIONS:
         data = pkg_resources.read_text(static, static_annotation_file)
         blob_static_annotation = bucket.blob(f"{output_prefix}/{static_annotation_file}")
-        blob_static_annotation.upload_from_string(data)
+        blob_static_annotation.upload_from_string(data, content_type="application/json")
 
 
 if __name__ == '__main__':
