@@ -14,6 +14,21 @@
       "date": "2019-05-05"
     }
   ],
+  "Canada": [
+    {
+      "annotation": {
+        "pct_TP": "FF57",
+        "pct_addon": "legacy addons disabled"
+      },
+      "date": "2017-11-14"
+    },
+    {
+      "annotation": {
+        "pct_addon": "data deleted (addons outage)"
+      },
+      "date": "2019-05-05"
+    }
+  ],
   "China": [
     {
       "annotation": {
@@ -120,6 +135,21 @@
     }
   ],
   "Russia": [
+    {
+      "annotation": {
+        "pct_TP": "FF57",
+        "pct_addon": "legacy addons disabled"
+      },
+      "date": "2017-11-14"
+    },
+    {
+      "annotation": {
+        "pct_addon": "data deleted (addons outage)"
+      },
+      "date": "2019-05-05"
+    }
+  ],
+  "Spain": [
     {
       "annotation": {
         "pct_TP": "FF57",
