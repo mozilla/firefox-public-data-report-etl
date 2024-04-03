@@ -1,19 +1,58 @@
-import click
-from datetime import datetime, timedelta
 import json
 import logging
+from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Dict, Tuple, List, Any
+
+import click
 import requests
-
 from google.cloud import bigquery, storage
-
-from pyspark.sql import functions as F
-from pyspark.sql import SparkSession, Row
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def load_data(spark, date_from, date_to):
+def get_aggregation_query(source_table: str):
+    output_fields: Dict[str, Tuple[str]] = {
+        "os": ("os",),
+        "browser_arch": ("browser_arch",),
+        "cpu_cores": ("cpu_cores",),
+        "cpu_vendor": ("cpu_vendor",),
+        "cpu_speed": ("cpu_speed",),
+        "resolution": ("resolution",),
+        "memory_gb": ("memory_gb",),
+        "has_flash": ("has_flash",),
+        "os_arch": ("browser_arch", "os", "is_wow64"),
+        "gfx0_vendor_name": ("gfx0_vendor_id",),
+        "gfx0_model": ("gfx0_vendor_id", "gfx0_device_id"),
+    }
+
+    expr_template = (
+        "ARRAY(SELECT AS STRUCT {dimensions}, SUM(client_count) AS client_count "
+        f"FROM {source_table} "
+        "WHERE date_from = @date_from AND date_to = @date_to "
+        "GROUP BY {dimensions}) AS {field}"
+    )
+
+    return f"""
+    SELECT
+      DATE(@date_from) AS date_from,
+      DATE(@date_to) AS date_to,
+      (
+        SELECT 
+          SUM(client_count) 
+        FROM {source_table} 
+        WHERE date_from = @date_from AND date_to = @date_to
+      ) AS client_count,
+    """ + ",\n".join(
+        [
+            expr_template.format(field=field, dimensions=", ".join(dimensions))
+            for field, dimensions in output_fields.items()
+        ]
+    )
+
+
+def load_data(bq_client, input_bq_table, date_from, date_to):
     """Load a set of aggregated metrics for the provided timeframe.
 
     Returns Spark dataframe containing preaggregated user counts per various dimensions.
@@ -22,110 +61,7 @@ def load_data(spark, date_from, date_to):
         date_from: Start date (inclusive)
         date_to: End date (exclusive)
     """
-    bq = bigquery.Client()
-
-    query = """
-  WITH
-    rank_per_client AS (
-      SELECT
-        *,
-        ROW_NUMBER() OVER (PARTITION BY client_id ORDER BY submission_timestamp DESC) AS rn
-      FROM
-        `moz-fx-data-shared-prod.telemetry_stable.main_v5`
-      WHERE
-        DATE(submission_timestamp) >= @date_from
-        AND DATE(submission_timestamp) < @date_to
-    ),
-    latest_per_client_all AS (
-      SELECT
-        *
-      FROM
-        rank_per_client
-      WHERE
-        rn=1
-    ),
-    latest_per_client AS (
-      SELECT
-        environment.build.architecture AS browser_arch,
-        COALESCE(environment.system.os.name,
-            'Other') AS os_name,
-        COALESCE(
-            CASE
-                WHEN environment.system.os.name IN ('Linux', 'Darwin')
-                    THEN CONCAT(REGEXP_EXTRACT(environment.system.os.version, r"^[0-9]+"), '.x')
-                WHEN
-                    environment.system.os.name = 'Windows_NT' and
-                    environment.system.os.version = '10.0' and
-                    environment.system.os.windows_build_number >= 20000
-                    THEN CONCAT(
-                        '10.0.',
-                        CAST(CAST(
-                            FLOOR(environment.system.os.windows_build_number / 10000) AS INT64
-                            ) AS STRING), 'xxxx'
-                        )
-                ELSE environment.system.os.version
-            END,
-            'Other') AS os_version,
-        environment.system.memory_mb,
-        coalesce(environment.system.is_wow64, FALSE) AS is_wow64,
-        IF (ARRAY_LENGTH(environment.system.gfx.adapters)>0,
-            environment.system.gfx.adapters[OFFSET(0)].vendor_id,
-            NULL) AS gfx0_vendor_id,
-        IF (ARRAY_LENGTH(environment.system.gfx.adapters)>0,
-            environment.system.gfx.adapters[OFFSET(0)].device_id,
-            NULL) AS gfx0_device_id,
-        IF (ARRAY_LENGTH(environment.system.gfx.monitors)>0,
-            environment.system.gfx.monitors[OFFSET(0)].screen_width,
-            0) AS screen_width,
-        IF (ARRAY_LENGTH(environment.system.gfx.monitors)>0,
-            environment.system.gfx.monitors[OFFSET(0)].screen_height,
-            0) AS screen_height,
-        environment.system.cpu.cores AS cpu_cores,
-        environment.system.cpu.vendor AS cpu_vendor,
-        environment.system.cpu.speed_m_hz AS cpu_speed,
-        'Shockwave Flash' IN (
-            SELECT name FROM UNNEST(environment.addons.active_plugins)
-            ) AS has_flash
-      FROM
-        latest_per_client_all
-    ),
-    transformed AS (
-      SELECT
-        browser_arch,
-        CONCAT(os_name, '-', os_version) AS os,
-        COALESCE(SAFE_CAST(ROUND(memory_mb / 1024.0) AS INT64), 0) AS memory_gb,
-        is_wow64,
-        gfx0_vendor_id,
-        gfx0_device_id,
-        CONCAT(CAST(screen_width AS STRING), 'x', CAST(screen_height AS STRING)) AS resolution,
-        cpu_cores,
-        cpu_vendor,
-        cpu_speed,
-        has_flash
-      FROM
-        latest_per_client
-    ),
-    by_dimensions AS (
-      SELECT
-        *,
-        count(*) AS count
-      FROM
-        transformed
-      GROUP BY
-        browser_arch,
-        os,
-        memory_gb,
-        is_wow64,
-        gfx0_vendor_id,
-        gfx0_device_id,
-        resolution,
-        cpu_cores,
-        cpu_vendor,
-        cpu_speed,
-        has_flash
-    )
-    select * from by_dimensions
-  """
+    query = get_aggregation_query(input_bq_table)
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
@@ -133,18 +69,15 @@ def load_data(spark, date_from, date_to):
             bigquery.ScalarQueryParameter("date_to", "DATE", date_to),
         ]
     )
-    hardware_by_dimensions_query_job = bq.query(query, job_config=job_config)
-    hardware_by_dimensions_query_job.result()
+    hardware_by_dimensions_query_job = bq_client.query(query, job_config=job_config)
+    hardware_by_dimensions = dict(next(hardware_by_dimensions_query_job.result()))
 
-    hardware_by_dimensions_df = (
-        spark.read.format("bigquery")
-        .option("project", hardware_by_dimensions_query_job.destination.project)
-        .option("dataset", hardware_by_dimensions_query_job.destination.dataset_id)
-        .option("table", hardware_by_dimensions_query_job.destination.table_id)
-        .load()
-    )
+    if hardware_by_dimensions["client_count"] is None:
+        raise ValueError(
+            f"No data in {input_bq_table} for {date_from} to {date_to}"
+        )
 
-    return hardware_by_dimensions_df
+    return hardware_by_dimensions
 
 
 def get_os_arch(browser_arch, os_name, is_wow64):
@@ -275,45 +208,61 @@ def build_device_map():
     return device_map
 
 
-DEVICE_MAP = build_device_map()
+def transform_dimensions(
+    aggregated_dimensions: Dict[str, List[Dict[str, Any]]]
+) -> Dict[str, Dict[str, int]]:
+    """Transform compound dimensions into the desired values.
 
+    e.g. convert gfx0_vendor_id and gfx0_device_id into gfx0_model
 
-def to_dict(row):
-    cpu_speed = "Other" if row["cpu_speed"] is None else str(round(row["cpu_speed"] / 1000.0, 1))
+    Returns a dict of {dimension_name: {value: client_count}}
+    """
+    device_map = build_device_map()
+
+    untransformed_dimensions = [
+        "os",
+        "browser_arch",
+        "cpu_cores",
+        "cpu_vendor",
+        "resolution",
+        "memory_gb",
+        "has_flash",
+        "cpu_speed",
+    ]
+
+    def untransformed(dim):
+        return {
+            dim_value[dim]: dim_value["client_count"]
+            for dim_value in aggregated_dimensions[dim]
+        }
+
+    os_arch_count = defaultdict(int)
+    gfx_vendor_count = defaultdict(int)
+    gfx_model_count = defaultdict(int)
+
+    for os_arch in aggregated_dimensions["os_arch"]:
+        os_arch_count[
+            get_os_arch(os_arch["browser_arch"], os_arch["os"], os_arch["is_wow64"])
+        ] += os_arch["client_count"]
+
+    for gfx_vendor in aggregated_dimensions["gfx0_vendor_name"]:
+        gfx_vendor_count[
+            get_gpu_vendor_name(gfx_vendor["gfx0_vendor_id"])
+        ] += gfx_vendor["client_count"]
+
+    for gfx_model in aggregated_dimensions["gfx0_model"]:
+        gfx_model_count[
+            get_device_family_chipset(
+                gfx_model["gfx0_vendor_id"], gfx_model["gfx0_device_id"], device_map
+            )
+        ] += gfx_model["client_count"]
+
     return {
-        "os": row["os"],
-        "arch": row["browser_arch"],
-        "cpu_cores": row["cpu_cores"],
-        "cpu_vendor": row["cpu_vendor"],
-        "cpu_speed": cpu_speed,
-        "resolution": row["resolution"],
-        "memory_gb": row["memory_gb"],
-        "has_flash": row["has_flash"],
-        "os_arch": get_os_arch(row["browser_arch"], row["os"], row["is_wow64"]),
-        "gfx0_vendor_name": get_gpu_vendor_name(row["gfx0_vendor_id"]),
-        "gfx0_model": get_device_family_chipset(
-            row["gfx0_vendor_id"], row["gfx0_device_id"], DEVICE_MAP
-        ),
-        "count": row["count"],
+        **{dim: untransformed(dim) for dim in untransformed_dimensions},
+        "os_arch": os_arch_count,
+        "gfx0_vendor_name": gfx_vendor_count,
+        "gfx0_model": gfx_model_count,
     }
-
-
-def add_counts(dict):
-    count = dict["count"]
-    return {k: {v: count} for k, v in dict.items() if k != "count"}
-
-
-def combine(acc, row):
-    for metric, values in row.items():
-        acc_metric = acc.get(metric, {})
-        for value, count in values.items():
-            acc_metric[value] = acc_metric.get(value, 0) + count
-        acc[metric] = acc_metric
-    return acc
-
-
-def aggregate(hardware_by_dimensions_df):
-    return hardware_by_dimensions_df.rdd.map(to_dict).map(add_counts).fold({}, combine)
 
 
 def collapse_buckets(aggregated_data, count_threshold, sample_count):
@@ -357,11 +306,10 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
     return ratios
 
 
-def flatten_aggregates(aggregates):
+def flatten_aggregates(aggregates: List[Dict]):
     keys_translation = {
         "arch": "browserArch_",
         "cpu_cores": "cpuCores_",
-        # "cpu_cores_speed": "cpuCoresSpeed_",
         "cpu_vendor": "cpuVendor_",
         "cpu_speed": "cpuSpeed_",
         "gfx0_vendor_name": "gpuVendor_",
@@ -375,40 +323,20 @@ def flatten_aggregates(aggregates):
     flattened_list = []
     for aggregate in aggregates:
         flattened = {}
-        for metric, values in json.loads(aggregate).items():
+        for metric, values in aggregate.items():
             if metric in keys_translation:
-                for k, v in values.items():
-                    flattened[keys_translation[metric] + k] = v
-        flattened["date"] = json.loads(aggregate)["date"]
+                for kv_pair in values:
+                    flattened[keys_translation[metric] + str(kv_pair["key"])] = kv_pair["value"]
+        flattened["date"] = aggregate["date_from"].isoformat()
         flattened_list.append(flattened)
     return flattened_list
 
 
-def upload_data_gcs(spark, bq_table_name, gcs_bucket, gcs_path):
-    hardware_aggregates_df = (
-        spark.read.format("bigquery").option("table", bq_table_name).load()
-    )
-
-    map_fields = [
-        "arch",
-        "cpu_cores",
-        "cpu_vendor",
-        "cpu_speed",
-        "gfx0_vendor_name",
-        "gfx0_model",
-        "resolution",
-        "memory_gb",
-        "os",
-        "os_arch",
-        "has_flash",
-    ]
-    select_exprs = ["date_from AS date"]
-    for field in map_fields:
-        select_exprs.append(f"MAP_FROM_ENTRIES({field}.key_value) AS {field}")
-    aggregates = hardware_aggregates_df.selectExpr(select_exprs).toJSON().collect()
-
+def upload_data_gcs(
+    output_data: List[Dict], gcs_bucket: str, gcs_path: str, dryrun: bool
+):
     aggregates_flattened = sorted(
-        flatten_aggregates(aggregates), key=lambda a: a["date"], reverse=True
+        flatten_aggregates(output_data), key=lambda a: a["date"], reverse=True
     )
     aggregates_flattened_json = json.dumps(aggregates_flattened, indent=4)
 
@@ -420,76 +348,110 @@ def upload_data_gcs(spark, bq_table_name, gcs_bucket, gcs_path):
     # the other for archiving.
     archived_file_copy = f"hwsurvey-weekly-{datetime.today().strftime('%Y-%m-%d')}.json"
 
-    logger.info(f"Uploading data to gcs bucket: {gcs_bucket}, path: {gcs_path}")
+    if dryrun:
+        logger.info(f"DRYRUN - Skipping upload to gcs bucket: {gcs_bucket}, path: {gcs_path}")
+    else:
+        logger.info(f"Uploading data to gcs bucket: {gcs_bucket}, path: {gcs_path}")
 
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(gcs_bucket)
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(gcs_bucket)
 
-    blob_archive = bucket.blob(gcs_path + archived_file_copy)
-    blob_archive.upload_from_filename("hwsurvey-weekly.json")
+        blob_archive = bucket.blob(gcs_path + archived_file_copy)
+        blob_archive.upload_from_filename("hwsurvey-weekly.json")
 
-    blob_latest = bucket.blob(gcs_path + "hwsurvey-weekly.json")
-    blob_latest.upload_from_filename("hwsurvey-weekly.json")
-
-
-date_type = click.DateTime()
+        blob_latest = bucket.blob(gcs_path + "hwsurvey-weekly.json")
+        blob_latest.upload_from_filename("hwsurvey-weekly.json")
 
 
 @click.command()
 @click.option(
     "--date_from",
-    type=date_type,
+    type=click.DateTime(),
     required=True,
     help="Aggregation start date (e.g. yyyy-mm-dd)",
 )
-@click.option("--bq_table", required=True, help="Output BigQuery table")
-@click.option("--temporary_gcs_bucket", required=True, help="GCS bucket for writing to BigQuery")
-@click.option("--gcs_bucket", required=True, help="GCS bucket for storing data")
-@click.option("--gcs_path", required=True, help="GCS path for storing data")
+@click.option(
+    "--input_bq_table",
+    required=True,
+    help="BigQuery table containing the per client input data in project.dataset.table format",
+)
+@click.option(
+    "--output_bq_table",
+    required=True,
+    help="BigQuery table to write transformed aggregated data to in project.dataset.table format",
+)
+@click.option("--gcs_bucket", required=True, help="GCS bucket for storing output data")
+@click.option("--gcs_path", required=True, help="GCS path for storing output data")
 @click.option(
     "--past_weeks",
     type=int,
     default=0,
     help="Number of past weeks to include (useful for backfills)",
 )
-def main(date_from, bq_table, temporary_gcs_bucket, gcs_bucket, gcs_path, past_weeks):
-    """Generate weekly hardware report for [date_from, date_from_7) timeframe
+@click.option(
+    "--dry_run",
+    "--dryrun",
+    default=False,
+    is_flag=True,
+    help="If dry run is set, data will not be uploaded to GCS",
+)
+def main(date_from, input_bq_table, output_bq_table, gcs_bucket, gcs_path, past_weeks, dry_run):
+    """Generate weekly hardware report for [date_from, date_from + 7) timeframe.
 
-  Aggregates are incrementally inserted to provided BigQuery table,
-  finally table is exported to JSON and copied to GCS.
-  """
+    Aggregates are incrementally inserted to provided BigQuery table,
+    finally table is exported to JSON and copied to GCS.
+    """
     date_from = date_from.date()
     logger.info(f"Starting, date_from={date_from}, past_weeks={past_weeks}")
-    spark = SparkSession.builder.appName("hardware_report_dashboard").getOrCreate()
+
+    bq_client = bigquery.Client()
 
     for batch_number in range(0, past_weeks + 1):
         # generate aggregates
         batch_date_from = date_from - timedelta(weeks=1 * batch_number)
         batch_date_to = batch_date_from + timedelta(days=7)
         logger.info(
-            f"Running batch {batch_number}/{past_weeks}, timeframe: [{batch_date_from}, {batch_date_to})"  # noqa
+            f"Running batch {batch_number + 1}/{past_weeks + 1}, timeframe: [{batch_date_from}, {batch_date_to})"
+            # noqa
         )
-        hardware_by_dimensions_df = load_data(spark, batch_date_from, batch_date_to)
+        hardware_by_dimensions = load_data(
+            bq_client, input_bq_table, batch_date_from, batch_date_to
+        )
 
-        aggregated = aggregate(hardware_by_dimensions_df)
+        transformed = transform_dimensions(hardware_by_dimensions)
 
         # Collapse together groups that count less than 1% of our samples.
-        sample_count = hardware_by_dimensions_df.agg(F.sum("count")).collect()[0][0]
-        threshold_to_collapse = int(sample_count * 0.01)
+        threshold_to_collapse = int(hardware_by_dimensions["client_count"] * 0.01)
 
-        aggregates = collapse_buckets(aggregated, threshold_to_collapse, sample_count)
-        aggregates["date_from"] = batch_date_from
-        aggregates["date_to"] = batch_date_to
+        percentages = collapse_buckets(
+            transformed, threshold_to_collapse, hardware_by_dimensions["client_count"]
+        )
+
+        # convert to bigquery row format
+        for dimension in percentages:
+            kv_array = []
+            for value, count in percentages[dimension].items():
+                kv_array.append({"key": value, "value": count})
+            percentages[dimension] = sorted(kv_array, key=lambda x: x["key"])
+
+        percentages["date_from"] = batch_date_from.isoformat()
+        percentages["date_to"] = batch_date_to.isoformat()
 
         # save to BQ
-        aggregates_df = spark.createDataFrame(Row(**x) for x in [aggregates])
-        aggregates_df.write.format("bigquery").option("table", bq_table).option(
-            "temporaryGcsBucket", temporary_gcs_bucket
-        ).mode("append").save()
+        load_config = bigquery.LoadJobConfig()
+        load_config.write_disposition = bigquery.job.WriteDisposition.WRITE_TRUNCATE
+        bq_client.load_table_from_json(
+            json_rows=[percentages],
+            destination=f"{output_bq_table}${batch_date_from:%Y%m%d}",
+            job_config=load_config,
+        ).result()
 
-    upload_data_gcs(spark, bq_table, gcs_bucket, gcs_path)
+    output_data = [
+        dict(row) for row in
+        bq_client.query(f"SELECT * FROM {output_bq_table} ORDER BY date_from").result()
+    ]
 
-    spark.stop()
+    upload_data_gcs(output_data, gcs_bucket, gcs_path, dry_run)
 
 
 if __name__ == "__main__":
