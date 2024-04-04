@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 def get_aggregation_query(source_table: str):
+    """
+    Generates a query to get a single row with a column for each hardware dimension.
+    Each column contains an array of hardware values and client counts.
+    """
     output_fields: Dict[str, Tuple[str]] = {
         "os": ("os",),
         "browser_arch": ("browser_arch",),
