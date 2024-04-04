@@ -1,7 +1,23 @@
+from unittest import mock
+
 from public_data_report.hardware_report import hardware_report
 
-from pyspark.sql.types import BooleanType, DoubleType, LongType, StringType, StructField, StructType
-from pyspark.sql import SparkSession
+DEVICE_MAP_SAMPLE = {
+  "0x10de": {
+    "0x13c1": [
+      "Maxwell",
+      "GM204"
+    ],
+    "0x13c2": [
+      "Maxwell",
+      "GM204"
+    ],
+    "0x13d7": [
+      "Maxwell",
+      "GM204M"
+    ]
+  }
+}
 
 
 def test_hardware_report_helpers():
@@ -68,101 +84,70 @@ def test_hardware_report_helpers():
     ), "Unknown families must be reported as 'Other'."
 
 
-def test_aggregate():
-    spark = SparkSession.builder.appName("hardware_report_test").getOrCreate()
+@mock.patch("public_data_report.hardware_report.hardware_report.build_device_map")
+def test_transform_dimensions(mock_device_map):
+    mock_device_map.return_value = DEVICE_MAP_SAMPLE
 
-    test_schema = StructType(
-        [
-            StructField("browser_arch", StringType()),
-            StructField("os", StringType()),
-            StructField("memory_gb", LongType()),
-            StructField("is_wow64", BooleanType()),
-            StructField("gfx0_vendor_id", StringType()),
-            StructField("gfx0_device_id", StringType()),
-            StructField("resolution", StringType()),
-            StructField("cpu_cores", LongType()),
-            StructField("cpu_vendor", StringType()),
-            StructField("cpu_speed", DoubleType()),
-            StructField("has_flash", BooleanType()),
-            StructField("count", LongType()),
-        ]
-    )
-
-    test_data = [
-        [
-            "x86-64",
-            "Windows_NT-10.0",
-            14,
-            False,
-            "0x10de",
-            "0x13c2",
-            "1920x1080",
-            4,
-            "GenuineIntel",
-            3600.0,
-            True,
-            1,
+    test_data = {
+        "browser_arch": [{"browser_arch": "x86-64", "client_count": 6}],
+        "os": [
+            {"os": "Windows_NT-10.0", "client_count": 1},
+            {"os": "Windows_NT-6.2", "client_count": 5},
         ],
-        [
-            "x86-64",
-            "Windows_NT-6.2",
-            17,
-            False,
-            "0x1414",
-            "0xfefe",
-            "1920x1080",
-            4,
-            "GenuineIntel",
-            None,
-            False,
-            5,
+        "memory_gb": [
+            {"memory_gb": 14, "client_count": 1},
+            {"memory_gb": 17, "client_count": 5},
         ],
-    ]
+        "resolution": [
+            {"resolution": "1920x1080", "client_count": 1},
+            {"resolution": "2560x1440", "client_count": 5}
+        ],
+        "cpu_cores": [
+            {"cpu_cores": 4, "client_count": 1},
+            {"cpu_cores": 8, "client_count": 5},
+        ],
+        "cpu_vendor": [{"cpu_vendor": "GenuineIntel", "client_count": 6}],
+        "cpu_speed": [
+            {"cpu_speed": "3.6", "client_count": 1},
+            {"cpu_speed": "Other", "client_count": 5},
+        ],
+        "has_flash": [
+            {"has_flash": True, "client_count": 1},
+            {"has_flash": False, "client_count": 5},
+        ],
+        "os_arch": [
+            {
+                "is_wow64": False,
+                "os": "Windows_NT-6.2",
+                "browser_arch": "x86-64",
+                "client_count": 5,
+            },
+            {
+                "is_wow64": True,
+                "os": "Windows_NT-10.0",
+                "browser_arch": "x86-64",
+                "client_count": 1,
+            },
+        ],
+        "gfx0_vendor_name": [
+            {"gfx0_vendor_id": "0x10de", "client_count": 1},
+            {"gfx0_vendor_id": "0x1414", "client_count": 5},
+        ],
+        "gfx0_model": [
+            {"gfx0_device_id": "0x13c2", "gfx0_vendor_id": "0x10de", "client_count": 1},
+            {"gfx0_device_id": "0xfefe", "gfx0_vendor_id": "0x1414", "client_count": 5},
+        ],
+    }
 
-    test_df = spark.createDataFrame(test_data, schema=test_schema)
+    transformed = hardware_report.transform_dimensions(test_data)
 
-    dicts = test_df.rdd.map(hardware_report.to_dict).collect()
-    dicts_expected = [
-        {
-            "os": "Windows_NT-10.0",
-            "arch": "x86-64",
-            "cpu_cores": 4,
-            "cpu_vendor": "GenuineIntel",
-            "cpu_speed": "3.6",
-            "resolution": "1920x1080",
-            "memory_gb": 14,
-            "has_flash": True,
-            "os_arch": "x86-64",
-            "gfx0_vendor_name": "NVIDIA",
-            "gfx0_model": "Maxwell-GM204",
-            "count": 1,
-        },
-        {
-            "os": "Windows_NT-6.2",
-            "arch": "x86-64",
-            "cpu_cores": 4,
-            "cpu_vendor": "GenuineIntel",
-            "cpu_speed": "Other",
-            "resolution": "1920x1080",
-            "memory_gb": 17,
-            "has_flash": False,
-            "os_arch": "x86-64",
-            "gfx0_vendor_name": "Microsoft Basic",
-            "gfx0_model": "Other",
-            "count": 5,
-        },
-    ]
-
-    assert dicts == dicts_expected
-
-    aggregated = hardware_report.aggregate(test_df)
-    aggregated_expected = {
+    transformed_expected = {
         "os": {"Windows_NT-10.0": 1, "Windows_NT-6.2": 5},
-        "arch": {"x86-64": 6},
-        "cpu_cores": {4: 6},
+        "browser_arch": {"x86-64": 6},
+        "cpu_cores": {4: 1, 8: 5},
         "cpu_vendor": {"GenuineIntel": 6},
         "cpu_speed": {"3.6": 1, "Other": 5},
-        "resolution": {"1920x1080": 6},
+        "resolution": {"1920x1080": 1, "2560x1440": 5},
         "memory_gb": {14: 1, 17: 5},
         "has_flash": {True: 1, False: 5},
         "os_arch": {"x86-64": 6},
@@ -170,7 +155,7 @@ def test_aggregate():
         "gfx0_model": {"Maxwell-GM204": 1, "Other": 5},
     }
 
-    assert aggregated == aggregated_expected
+    assert transformed == transformed_expected
 
 
 def test_collapse_buckets():
@@ -203,3 +188,13 @@ def test_collapse_buckets():
     collapsed = hardware_report.collapse_buckets(aggregated, 10, 100)
 
     assert collapsed == collapsed_expected
+
+
+@mock.patch("public_data_report.hardware_report.hardware_report.storage")
+def test_upload_dryrun(mock_gcs):
+    """"Dry run should not try to upload to GCS."""
+    hardware_report.upload_data_gcs([], "", "", dryrun=True)
+    assert mock_gcs.Client.call_count == 0
+
+    hardware_report.upload_data_gcs([], "", "", dryrun=False)
+    assert mock_gcs.Client.call_count == 1

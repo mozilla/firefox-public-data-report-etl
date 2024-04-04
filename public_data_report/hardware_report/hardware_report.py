@@ -111,7 +111,7 @@ def get_gpu_vendor_name(gpu_vendor_id):
     """Get the string name matching the provided vendor id.
 
     Args:
-      id: A string containing the vendor id.
+      gpu_vendor_id: A string containing the vendor id.
 
     Returns:
       A string containing the vendor name or "Other" if
@@ -209,7 +209,7 @@ def build_device_map():
 
 
 def transform_dimensions(
-    aggregated_dimensions: Dict[str, List[Dict[str, Any]]]
+    hardware_by_dimensions: Dict[str, List[Dict[str, Any]]]
 ) -> Dict[str, Dict[str, int]]:
     """Transform compound dimensions into the desired values.
 
@@ -233,24 +233,24 @@ def transform_dimensions(
     def untransformed(dim):
         return {
             dim_value[dim]: dim_value["client_count"]
-            for dim_value in aggregated_dimensions[dim]
+            for dim_value in hardware_by_dimensions[dim]
         }
 
     os_arch_count = defaultdict(int)
     gfx_vendor_count = defaultdict(int)
     gfx_model_count = defaultdict(int)
 
-    for os_arch in aggregated_dimensions["os_arch"]:
+    for os_arch in hardware_by_dimensions["os_arch"]:
         os_arch_count[
             get_os_arch(os_arch["browser_arch"], os_arch["os"], os_arch["is_wow64"])
         ] += os_arch["client_count"]
 
-    for gfx_vendor in aggregated_dimensions["gfx0_vendor_name"]:
+    for gfx_vendor in hardware_by_dimensions["gfx0_vendor_name"]:
         gfx_vendor_count[
             get_gpu_vendor_name(gfx_vendor["gfx0_vendor_id"])
         ] += gfx_vendor["client_count"]
 
-    for gfx_model in aggregated_dimensions["gfx0_model"]:
+    for gfx_model in hardware_by_dimensions["gfx0_model"]:
         gfx_model_count[
             get_device_family_chipset(
                 gfx_model["gfx0_vendor_id"], gfx_model["gfx0_device_id"], device_map
@@ -259,9 +259,9 @@ def transform_dimensions(
 
     return {
         **{dim: untransformed(dim) for dim in untransformed_dimensions},
-        "os_arch": os_arch_count,
-        "gfx0_vendor_name": gfx_vendor_count,
-        "gfx0_model": gfx_model_count,
+        "os_arch": dict(os_arch_count),
+        "gfx0_vendor_name": dict(gfx_vendor_count),
+        "gfx0_model": dict(gfx_model_count),
     }
 
 
