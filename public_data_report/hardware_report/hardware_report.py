@@ -39,9 +39,9 @@ def get_aggregation_query(source_table: str):
       DATE(@date_from) AS date_from,
       DATE(@date_to) AS date_to,
       (
-        SELECT 
-          SUM(client_count) 
-        FROM {source_table} 
+        SELECT
+          SUM(client_count)
+        FROM {source_table}
         WHERE date_from = @date_from AND date_to = @date_to
       ) AS client_count,
     """ + ",\n".join(
@@ -411,8 +411,8 @@ def main(date_from, input_bq_table, output_bq_table, gcs_bucket, gcs_path, past_
         batch_date_from = date_from - timedelta(weeks=1 * batch_number)
         batch_date_to = batch_date_from + timedelta(days=7)
         logger.info(
-            f"Running batch {batch_number + 1}/{past_weeks + 1}, timeframe: [{batch_date_from}, {batch_date_to})"
-            # noqa
+            f"Running batch {batch_number + 1}/{past_weeks + 1}, "
+            f"timeframe: [{batch_date_from}, {batch_date_to})"
         )
         hardware_by_dimensions = load_data(
             bq_client, input_bq_table, batch_date_from, batch_date_to
