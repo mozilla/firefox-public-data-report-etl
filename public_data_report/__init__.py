@@ -1,0 +1,15 @@
+USER_ACITVITY_COUNTRY_LIST = [
+    "Worldwide",
+    "Brazil",
+    "Canada",
+    "France",
+    "Germany",
+    "India",
+    "Indonesia",
+    "Italy",
+    "Poland",
+    "Russia",
+    "Spain",
+    "United Kingdom",
+    "United States",
+]

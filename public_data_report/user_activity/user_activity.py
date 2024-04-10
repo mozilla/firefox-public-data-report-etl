@@ -1,9 +1,10 @@
-import click
 import json
 import logging
 
+import click
 from google.cloud import bigquery, storage
 
+from public_data_report import USER_ACITVITY_COUNTRY_LIST
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,12 +22,16 @@ def main(bq_table, gcs_bucket, gcs_path):
 
     client = bigquery.Client()
 
-    QUERY = (
-        "SELECT FORMAT_DATE('%Y-%m-%d', submission_date) AS date, country_name, mau,"
-        " avg_hours_usage_daily, intensity, new_profile_rate, latest_version_ratio,"
-        " top_addons, has_addon_ratio, top_locales"
-        f" FROM `{bq_table}`"
+    QUERY = f"""
+        SELECT FORMAT_DATE('%Y-%m-%d', submission_date) AS date, country_name, mau,
+        avg_hours_usage_daily, intensity, new_profile_rate, latest_version_ratio,
+        top_addons, has_addon_ratio, top_locales
+        FROM `{bq_table}`
+        WHERE country_name IN (
+            {", ".join(map(lambda x: f"'{x}'", USER_ACITVITY_COUNTRY_LIST))}    
         )
+    """
+
     query_job = client.query(QUERY)
     rows = query_job.result()
 
@@ -58,16 +63,32 @@ def main(bq_table, gcs_bucket, gcs_path):
                 }
             })
 
+    # validate country list
+    country_allowlist = set(USER_ACITVITY_COUNTRY_LIST)
+    missing_countries = country_allowlist - (set(web_usage_metrics.keys()) | web_usage_metrics.keys())
+    unexpected_countries = (set(web_usage_metrics.keys()) | web_usage_metrics.keys()) - country_allowlist
+    errors = []
+    if len(missing_countries) > 0:
+        errors.append(f"Expected countries missing: {missing_countries}")
+    if len(unexpected_countries) > 0:
+        errors.append(f"Countries not in allowlist but included in output: {unexpected_countries}")
+    if len(errors) > 0:
+        raise RuntimeError(f"Invalid countries in output: {', '.join(errors)}")
+
     storage_client = storage.Client()
     bucket = storage_client.bucket(gcs_bucket)
 
-    user_activity_metrics_json = json.dumps(user_activity_metrics, indent=4)
-    blob_fxhealth = bucket.blob(f"{gcs_path}/fxhealth.json")
-    blob_fxhealth.upload_from_string(user_activity_metrics_json, content_type="application/json")
-
-    web_usage_metrics_json = json.dumps(web_usage_metrics, indent=4)
-    blob_webusage = bucket.blob(f"{gcs_path}/webusage.json")
-    blob_webusage.upload_from_string(web_usage_metrics_json, content_type="application/json")
+    for json_data, filename in [
+        (user_activity_metrics, "fxhealth.json"),
+        (web_usage_metrics, "webusage.json"),
+    ]:
+        json.dumps(user_activity_metrics, indent=4)
+        blob = bucket.blob(f"{gcs_path}/{filename}")
+        blob.upload_from_string(
+            json.dumps(json_data, indent=4),
+            content_type="application/json"
+        )
+        logging.info(f"Uploaded {blob.size} bytes to {bucket.name}/{blob.name}")
 
 
 if __name__ == "__main__":
