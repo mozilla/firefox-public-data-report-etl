@@ -59,7 +59,7 @@ def get_aggregation_query(source_table: str):
 def load_data(bq_client, input_bq_table, date_from, date_to):
     """Load a set of aggregated metrics for the provided timeframe.
 
-    Returns Spark dataframe containing preaggregated user counts per various dimensions.
+    Returns dictionary containing preaggregated user counts per various dimensions.
 
     Args:
         date_from: Start date (inclusive)
