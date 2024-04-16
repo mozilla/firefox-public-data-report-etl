@@ -312,7 +312,7 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
 
 def flatten_aggregates(aggregates: List[Dict]):
     keys_translation = {
-        "arch": "browserArch_",
+        "browser_arch": "browserArch_",
         "cpu_cores": "cpuCores_",
         "cpu_vendor": "cpuVendor_",
         "cpu_speed": "cpuSpeed_",

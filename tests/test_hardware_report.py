@@ -161,7 +161,7 @@ def test_transform_dimensions(mock_device_map):
 def test_collapse_buckets():
     aggregated = {
         "os": {"Windows_NT-10.0": 95, "Windows_NT-6.2": 5},
-        "arch": {"x86-64": 100},
+        "browser_arch": {"x86-64": 100},
         "cpu_cores": {4: 100},
         "cpu_vendor": {"GenuineIntel": 100},
         "cpu_speed": {"4": 2, "3.6": 48, "Other": 50},
@@ -174,7 +174,7 @@ def test_collapse_buckets():
     }
     collapsed_expected = {
         "os": {"Windows_NT-10.0": 0.95, "Other": 0.05},
-        "arch": {"x86-64": 1.0},
+        "browser_arch": {"x86-64": 1.0},
         "cpu_cores": {"4": 1.0},
         "cpu_vendor": {"GenuineIntel": 1.0},
         "cpu_speed": {"3.6": 0.48, "Other": 0.52},
