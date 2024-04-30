@@ -180,7 +180,7 @@ def test_collapse_buckets():
         "cpu_speed": {"3.6": 0.48, "Other": 0.52},
         "resolution": {"1920x1080": 1.0},
         "memory_gb": {"14": 0.5, "17": 0.5},
-        "has_flash": {"Other": 0.01, "False": 0.99},
+        "has_flash": {"True": 0.01, "False": 0.99},
         "os_arch": {"x86-64": 1.0},
         "gfx0_vendor_name": {"NVIDIA": 0.6, "Microsoft Basic": 0.4},
         "gfx0_model": {"Maxwell-GM204": 0.95, "Other": 0.05},

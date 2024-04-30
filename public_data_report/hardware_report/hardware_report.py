@@ -270,14 +270,22 @@ def transform_dimensions(
 
 
 def collapse_buckets(aggregated_data, count_threshold, sample_count):
+    """Group keys that have less than count_threshold into an "Other" bucket."""
     OTHER_KEY = "Other"
+
+    # low-cardinality dimensions to not create an "other" bucket for
+    uncollapsed_dimensions = [
+        "has_flash",
+        "os_arch",
+    ]
+
     collapsed_groups = {}
     for dimension, counts in aggregated_data.items():
         collapsed_counts = {}
         for k, v in counts.items():
             if dimension == "resolution" and k == "0x0":
                 collapsed_counts[OTHER_KEY] = collapsed_counts.get(OTHER_KEY, 0) + v
-            elif v < count_threshold:
+            elif v < count_threshold and dimension not in uncollapsed_dimensions:
                 if dimension == "os":
                     # create generic key per os name
                     [os, ver] = k.split("-", 1)
