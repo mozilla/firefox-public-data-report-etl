@@ -88,12 +88,13 @@ def get_os_arch(browser_arch, os_name, is_wow64):
     """Infer the OS arch from environment data.
 
     Args:
-        browser_arch: the browser architecture string (either "x86" or "x86-64").
+        browser_arch: the browser architecture string (either "x86", "x86-64", or "aarch64").
         os_name: the operating system name.
         is_wow64: on Windows, indicates if the browser process is running under WOW64.
 
     Returns:
-        'x86' if the underlying OS is 32bit, 'x86-64' if it's a 64bit OS.
+        'x86' if the underlying OS is 32bit x86, 'x86-64' if it's a 64bit x86 OS, or
+        'aarch64' if it's a 64bit ARM OS.
 
     """
     is_64bit_browser = browser_arch == "x86-64"
@@ -106,6 +107,10 @@ def get_os_arch(browser_arch, os_name, is_wow64):
     # then we're on a 64 bit system.
     if is_windows and is_wow64:
         return "x86-64"
+
+    is_aarch64_browser = browser_arch == "aarch64"
+    if is_aarch64_browser:
+        return "aarch64"
 
     # Otherwise we're probably on a 32 bit system.
     return "x86"
