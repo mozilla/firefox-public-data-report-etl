@@ -1,12 +1,12 @@
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.7.1
+  gcp-gcr: circleci/gcp-gcr@0.16.2
 
 version: 2.1
 
 jobs:
   test:
     docker:
-      - image: mozilla/cidockerbases:docker-latest
+      - image: cimg/base:current  # https://circleci.com/developer/images/image/cimg/base
     steps:
       - checkout
       - setup_remote_docker
