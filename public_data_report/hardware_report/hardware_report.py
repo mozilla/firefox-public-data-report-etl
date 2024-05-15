@@ -140,6 +140,7 @@ def get_gpu_vendor_name(gpu_vendor_id):
         "0x15ad": "VMWare",
         "0x80ee": "Oracle VirtualBox",
         "0x1414": "Microsoft Basic",
+        "0x106b": "Apple",
     }
     return GPU_VENDOR_MAP.get(gpu_vendor_id, "Other")
 
