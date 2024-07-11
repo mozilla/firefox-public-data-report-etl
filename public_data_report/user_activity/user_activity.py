@@ -54,7 +54,7 @@ def main(bq_table, gcs_bucket, gcs_path):
                 "date": row.date,
                 "metrics": {
                     "avg_intensity": float(row.intensity),
-                    "MAU": row.mau * 100,
+                    "MAU": row.mau,
                     "avg_daily_usage(hours)": float(row.avg_hours_usage_daily),
                     "pct_new_user": float(row.new_profile_rate) * 100,
                     "pct_latest_version": float(row.latest_version_ratio) * 100,
