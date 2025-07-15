@@ -1,4 +1,4 @@
-FROM python:3.7-buster
+FROM python:3.13-bookworm
 
 # add a non-privileged user for running the application
 RUN groupadd --gid 10001 app && \
@@ -6,10 +6,9 @@ RUN groupadd --gid 10001 app && \
 
 WORKDIR /app
 
-# Install Java
-RUN apt-get update && apt-get install -y openjdk-11-jre
+ADD ./requirements-dev.txt /app/requirements-dev.txt
 
-RUN pip install --upgrade pip && pip install tox setuptools wheel flake8==5.0.4
+RUN pip install --upgrade pip && pip install -r requirements-dev.txt
 
 ADD ./requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
