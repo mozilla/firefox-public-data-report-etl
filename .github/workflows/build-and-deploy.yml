@@ -1,0 +1,44 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build image
+        run: make build
+      - name: Test code
+        run: make test
+      - name: Lint
+        run: make lint
+
+  build-and-push-image:
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build the Docker image
+        run: docker build . -t us-docker.pkg.dev/moz-fx-data-artifacts-prod/mozilla/firefox-public-data-report-etl:latest
+      - name: Push Docker image to GAR
+        uses: mozilla-it/deploy-actions/docker-push@v4.3.2
+        with:
+          project_id: moz-fx-data-artifacts-prod
+          image_tags: us-docker.pkg.dev/moz-fx-data-artifacts-prod/mozilla/firefox-public-data-report-etl:latest
+          workload_identity_pool_project_number: ${{ vars.GCPV2_WORKLOAD_IDENTITY_POOL_PROJECT_NUMBER }}
+          service_account_name: github-actions-artifact-pusher
