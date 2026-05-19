@@ -74,6 +74,7 @@ USER_ACITVITY_COUNTRY_LIST = [
     "Jordan",
     "Kazakhstan",
     "Kenya",
+    "Kosovo",
     "South Korea",
     "Kuwait",
     "Kyrgyzstan",
