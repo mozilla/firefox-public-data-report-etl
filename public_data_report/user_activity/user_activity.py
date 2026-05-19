@@ -30,12 +30,18 @@ def main(bq_table, gcs_bucket, gcs_path):
         avg_hours_usage_daily, intensity, new_profile_rate, latest_version_ratio,
         top_addons, has_addon_ratio, top_locales
         FROM `{bq_table}`
-        WHERE country_name IN (
-            {", ".join(map(lambda x: f"'{x}'", USER_ACITVITY_COUNTRY_LIST))}
-        )
+        WHERE country_name IN UNNEST(@country_list)
     """
 
-    query_job = client.query(QUERY)
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter(
+                "country_list", "STRING", USER_ACITVITY_COUNTRY_LIST
+            )
+        ]
+    )
+
+    query_job = client.query(QUERY, job_config=job_config)
     rows = query_job.result()
 
     user_activity_metrics = {}
