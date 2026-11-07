@@ -20,12 +20,6 @@
         "browserArch": "64-bit updates unthrottled on Win7+ for 2GB+ users"
       },
       "date": "2017-10-22"
-    },
-    {
-      "annotation": {
-        "cpuSpeed": "CPU speed now comes from Glean telemetry and excludes devices that don't report a speed (e.g. Apple Silicon Macs)"
-      },
-      "date": "2026-09-14"
     }
   ]
 }
