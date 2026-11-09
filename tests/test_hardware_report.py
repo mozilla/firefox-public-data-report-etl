@@ -190,6 +190,48 @@ def test_collapse_buckets():
     assert collapsed == collapsed_expected
 
 
+def test_exclude_unreported_cpu_speed():
+    transformed = {
+        "cpu_speed": {"0.0": 20, "Other": 30, "2.4": 40, "3.6": 10},
+        "cpu_vendor": {"Apple": 20, "GenuineIntel": 80},
+    }
+
+    excluded, cpu_speed_client_count = hardware_report.exclude_unreported_cpu_speed(
+        transformed
+    )
+
+    assert excluded["cpu_speed"] == {"2.4": 40, "3.6": 10}
+    assert cpu_speed_client_count == 50
+    # Other dimensions keep every client
+    assert excluded["cpu_vendor"] == {"Apple": 20, "GenuineIntel": 80}
+    # Input isn't modified
+    assert transformed["cpu_speed"]["Other"] == 30
+
+
+def test_collapse_buckets_with_dimension_totals():
+    aggregated = {
+        "cpu_speed": {"2.4": 40, "3.6": 9, "4.0": 1},
+        "cpu_vendor": {"Apple": 20, "GenuineIntel": 80},
+    }
+
+    collapsed = hardware_report.collapse_buckets(
+        aggregated, 10, 100, dimension_totals={"cpu_speed": 50}
+    )
+
+    # cpu_speed shares are out of its own total (50), and the threshold scales with it
+    # (10 * 50 / 100 = 5), so "4.0" (1) is collapsed and "3.6" (9) is kept
+    assert collapsed["cpu_speed"] == {"2.4": 0.8, "3.6": 0.18, "Other": 0.02}
+    assert collapsed["cpu_vendor"] == {"Apple": 0.2, "GenuineIntel": 0.8}
+
+
+def test_collapse_buckets_with_zero_dimension_total():
+    collapsed = hardware_report.collapse_buckets(
+        {"cpu_speed": {}}, 10, 100, dimension_totals={"cpu_speed": 0}
+    )
+
+    assert collapsed["cpu_speed"] == {}
+
+
 @mock.patch("public_data_report.hardware_report.hardware_report.storage")
 def test_upload_dryrun(mock_gcs):
     """"Dry run should not try to upload to GCS."""

@@ -275,9 +275,39 @@ def transform_dimensions(
     }
 
 
-def collapse_buckets(aggregated_data, count_threshold, sample_count):
-    """Group keys that have less than count_threshold into an "Other" bucket."""
+# CPU speed values that mean the device didn't report a speed:
+# "Other" is how the aggregates table labels a missing (NULL) speed, and "0.0" is
+# what legacy telemetry reported for Apple Silicon Macs, which don't expose a clock
+# speed. Glean reports NULL for them instead.
+UNREPORTED_CPU_SPEED_KEYS = {"Other", "0.0"}
+
+
+def exclude_unreported_cpu_speed(
+    transformed: Dict[str, Dict[Any, int]]
+) -> Tuple[Dict[str, Dict[Any, int]], int]:
+    """Remove devices that don't report a CPU speed from the cpu_speed dimension.
+
+    Returns the transformed data without those values, plus the number of clients
+    that do report a speed, to use as the cpu_speed denominator. Other dimensions
+    are unchanged, so these clients still count everywhere else.
+    """
+    reported = {
+        speed: count
+        for speed, count in transformed["cpu_speed"].items()
+        if speed not in UNREPORTED_CPU_SPEED_KEYS
+    }
+    return {**transformed, "cpu_speed": reported}, sum(reported.values())
+
+
+def collapse_buckets(aggregated_data, count_threshold, sample_count, dimension_totals=None):
+    """Group keys that have less than count_threshold into an "Other" bucket.
+
+    dimension_totals optionally overrides sample_count for specific dimensions, e.g.
+    when some clients are excluded from one dimension. The collapse threshold for that
+    dimension is scaled to the same share of its total.
+    """
     OTHER_KEY = "Other"
+    dimension_totals = dimension_totals or {}
 
     # low-cardinality dimensions to not create an "other" bucket for
     uncollapsed_dimensions = [
@@ -285,13 +315,22 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
         "os_arch",
     ]
 
+    def total_for(dimension):
+        return dimension_totals.get(dimension, sample_count)
+
+    def threshold_for(dimension):
+        if dimension not in dimension_totals or not sample_count:
+            return count_threshold
+        return int(count_threshold * total_for(dimension) / sample_count)
+
     collapsed_groups = {}
     for dimension, counts in aggregated_data.items():
         collapsed_counts = {}
+        dimension_threshold = threshold_for(dimension)
         for k, v in counts.items():
             if dimension == "resolution" and k == "0x0":
                 collapsed_counts[OTHER_KEY] = collapsed_counts.get(OTHER_KEY, 0) + v
-            elif v < count_threshold and dimension not in uncollapsed_dimensions:
+            elif v < dimension_threshold and dimension not in uncollapsed_dimensions:
                 if dimension == "os":
                     # create generic key per os name
                     [os, ver] = k.split("-", 1)
@@ -308,7 +347,7 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
             # Let's check again.
             final_collapsed = {}
             for k, v in collapsed_counts.items():
-                if v < count_threshold:
+                if v < dimension_threshold:
                     final_collapsed[OTHER_KEY] = final_collapsed.get(OTHER_KEY, 0) + v
                 else:
                     final_collapsed[k] = v
@@ -317,9 +356,12 @@ def collapse_buckets(aggregated_data, count_threshold, sample_count):
 
     ratios = {}
     for dimension, counts in collapsed_groups.items():
-        ratios[dimension] = {
-            str(metric): count / float(sample_count) for metric, count in counts.items()
-        }
+        total = total_for(dimension)
+        ratios[dimension] = (
+            {str(metric): count / float(total) for metric, count in counts.items()}
+            if total
+            else {}
+        )
 
     return ratios
 
@@ -438,11 +480,26 @@ def main(date_from, input_bq_table, output_bq_table, gcs_bucket, gcs_path, past_
 
         transformed = transform_dimensions(hardware_by_dimensions)
 
+        # CPU speed shares are out of clients that report a speed (see
+        # exclude_unreported_cpu_speed); all other dimensions use every client.
+        client_count = hardware_by_dimensions["client_count"]
+        transformed, cpu_speed_client_count = exclude_unreported_cpu_speed(transformed)
+        if client_count:
+            logger.info(
+                f"cpu_speed: excluded {client_count - cpu_speed_client_count} of "
+                f"{client_count} clients "
+                f"({(client_count - cpu_speed_client_count) / client_count:.1%}) "
+                "that don't report a CPU speed"
+            )
+
         # Collapse together groups that count less than 1% of our samples.
-        threshold_to_collapse = int(hardware_by_dimensions["client_count"] * 0.01)
+        threshold_to_collapse = int(client_count * 0.01)
 
         percentages = collapse_buckets(
-            transformed, threshold_to_collapse, hardware_by_dimensions["client_count"]
+            transformed,
+            threshold_to_collapse,
+            client_count,
+            dimension_totals={"cpu_speed": cpu_speed_client_count},
         )
 
         # convert to bigquery row format
